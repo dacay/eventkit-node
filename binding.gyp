@@ -11,7 +11,7 @@
       ],
       "frameworks": ["EventKit", "Foundation"],
       "dependencies": [
-        "<!@(node -p \"require('node-addon-api').gyp\")"
+        "<!(node -p \"require('node-addon-api').gyp\")"
       ],
       "cflags!": ["-fno-exceptions"],
       "cflags_cc!": ["-fno-exceptions"],
@@ -22,7 +22,11 @@
           "-framework EventKit",
           "-framework Foundation"
         ]
-      }
+      },
+      "defines": [
+        "NAPI_DISABLE_CPP_EXCEPTIONS",
+        "NAPI_VERSION=8"
+      ]
     }
   ]
 }
