@@ -6,14 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2207CC6B2D7C430F001DE308 /* EventKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2207CC6A2D7C430F001DE308 /* EventKit.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
-		2207CC532D7C4237001DE308 /* libeventkit-addon.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = "libeventkit-addon.dylib"; sourceTree = BUILT_PRODUCTS_DIR; };
+		2207CC532D7C4237001DE308 /* libnode-addon.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = "libnode-addon.dylib"; sourceTree = BUILT_PRODUCTS_DIR; };
+		2207CC6A2D7C430F001DE308 /* EventKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = EventKit.framework; path = System/Library/Frameworks/EventKit.framework; sourceTree = SDKROOT; };
+		2207CC6E2D7C4335001DE308 /* eventkit-addon-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "eventkit-addon-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		2207CC552D7C4237001DE308 /* eventkit-addon */ = {
+		2207CC982D7C4A6B001DE308 /* node-addon */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "eventkit-addon";
+			path = "node-addon";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -23,6 +29,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2207CC6B2D7C430F001DE308 /* EventKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -32,17 +39,27 @@
 		2207CC4A2D7C4237001DE308 = {
 			isa = PBXGroup;
 			children = (
-				2207CC552D7C4237001DE308 /* eventkit-addon */,
+				2207CC982D7C4A6B001DE308 /* node-addon */,
+				2207CC692D7C430E001DE308 /* Frameworks */,
 				2207CC542D7C4237001DE308 /* Products */,
+				2207CC6E2D7C4335001DE308 /* eventkit-addon-Bridging-Header.h */,
 			);
 			sourceTree = "<group>";
 		};
 		2207CC542D7C4237001DE308 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				2207CC532D7C4237001DE308 /* libeventkit-addon.dylib */,
+				2207CC532D7C4237001DE308 /* libnode-addon.dylib */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		2207CC692D7C430E001DE308 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2207CC6A2D7C430F001DE308 /* EventKit.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -58,9 +75,9 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		2207CC522D7C4237001DE308 /* eventkit-addon */ = {
+		2207CC522D7C4237001DE308 /* node-addon */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2207CC5C2D7C4237001DE308 /* Build configuration list for PBXNativeTarget "eventkit-addon" */;
+			buildConfigurationList = 2207CC5C2D7C4237001DE308 /* Build configuration list for PBXNativeTarget "node-addon" */;
 			buildPhases = (
 				2207CC4F2D7C4237001DE308 /* Headers */,
 				2207CC502D7C4237001DE308 /* Sources */,
@@ -71,13 +88,13 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				2207CC552D7C4237001DE308 /* eventkit-addon */,
+				2207CC982D7C4A6B001DE308 /* node-addon */,
 			);
-			name = "eventkit-addon";
+			name = "node-addon";
 			packageProductDependencies = (
 			);
 			productName = "eventkit-addon";
-			productReference = 2207CC532D7C4237001DE308 /* libeventkit-addon.dylib */;
+			productReference = 2207CC532D7C4237001DE308 /* libnode-addon.dylib */;
 			productType = "com.apple.product-type.library.dynamic";
 		};
 /* End PBXNativeTarget section */
@@ -91,10 +108,11 @@
 				TargetAttributes = {
 					2207CC522D7C4237001DE308 = {
 						CreatedOnToolsVersion = 16.2;
+						LastSwiftMigration = 1620;
 					};
 				};
 			};
-			buildConfigurationList = 2207CC4E2D7C4237001DE308 /* Build configuration list for PBXProject "eventkit-addon" */;
+			buildConfigurationList = 2207CC4E2D7C4237001DE308 /* Build configuration list for PBXProject "node-addon" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -108,7 +126,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				2207CC522D7C4237001DE308 /* eventkit-addon */,
+				2207CC522D7C4237001DE308 /* node-addon */,
 			);
 		};
 /* End PBXProject section */
@@ -242,33 +260,42 @@
 		2207CC5D2D7C4237001DE308 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = J459UX78PM;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				EXECUTABLE_PREFIX = lib;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/node_modules/node-addon-api";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "eventkit-addon-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
 		2207CC5E2D7C4237001DE308 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = J459UX78PM;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				EXECUTABLE_PREFIX = lib;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/node_modules/node-addon-api";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "eventkit-addon-Bridging-Header.h";
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		2207CC4E2D7C4237001DE308 /* Build configuration list for PBXProject "eventkit-addon" */ = {
+		2207CC4E2D7C4237001DE308 /* Build configuration list for PBXProject "node-addon" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2207CC5A2D7C4237001DE308 /* Debug */,
@@ -277,7 +304,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2207CC5C2D7C4237001DE308 /* Build configuration list for PBXNativeTarget "eventkit-addon" */ = {
+		2207CC5C2D7C4237001DE308 /* Build configuration list for PBXNativeTarget "node-addon" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2207CC5D2D7C4237001DE308 /* Debug */,
