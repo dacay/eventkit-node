@@ -51,6 +51,8 @@ eventkit.requestCalendarAccess().then(granted => {
       console.log(`Calendar: ${calendar.title}`);
       console.log(`  ID: ${calendar.id}`);
       console.log(`  Type: ${calendar.type}`);
+      console.log(`  Color (hex): ${calendar.color.hex}`);
+      console.log(`  Color space: ${calendar.color.space}`);
       console.log(`  Source: ${calendar.source}`);
       console.log(`  Allows modifications: ${calendar.allowsContentModifications}`);
     });
@@ -81,6 +83,8 @@ requestCalendarAccess().then(granted => {
       console.log(`Calendar: ${calendar.title}`);
       console.log(`  ID: ${calendar.id}`);
       console.log(`  Type: ${calendar.type}`);
+      console.log(`  Color (hex): ${calendar.color.hex}`);
+      console.log(`  Color components: ${calendar.color.components}`);
       console.log(`  Source: ${calendar.source}`);
     });
   }
@@ -115,6 +119,8 @@ async function main() {
       console.log(`Calendar: ${calendar.title}`);
       console.log(`  ID: ${calendar.id}`);
       console.log(`  Type: ${calendar.type}`);
+      console.log(`  Color (hex): ${calendar.color.hex}`);
+      console.log(`  Color space: ${calendar.color.space}`);
       console.log(`  Source: ${calendar.source}`);
     });
     
@@ -127,7 +133,7 @@ async function main() {
 #### Named imports:
 
 ```typescript
-import { requestCalendarAccess, getCalendars, EntityType, Calendar } from 'eventkit-node';
+import { requestCalendarAccess, getCalendars, EntityType, Calendar, CalendarColor } from 'eventkit-node';
 
 async function main() {
   // Request calendar access
@@ -153,6 +159,8 @@ async function main() {
       console.log(`Calendar: ${calendar.title}`);
       console.log(`  ID: ${calendar.id}`);
       console.log(`  Type: ${calendar.type}`);
+      console.log(`  Color (hex): ${calendar.color.hex}`);
+      console.log(`  Color components: ${calendar.color.components}`);
       console.log(`  Source: ${calendar.source}`);
     });
     
@@ -180,7 +188,10 @@ Returns an array of `Calendar` objects with the following properties:
 - `title`: Display name of the calendar
 - `allowsContentModifications`: Whether the calendar allows content modifications
 - `type`: Type of the calendar ('local', 'calDAV', 'exchange', 'subscription', 'birthday', or 'unknown')
-- `color`: Color of the calendar as a comma-separated RGBA string
+- `color`: Color information with multiple representations:
+  - `hex`: Hex color code with alpha (#RRGGBBAA)
+  - `components`: Raw color components as comma-separated values
+  - `space`: Color space of the original color
 - `source`: Source of the calendar (e.g., iCloud, Google)
 
 ### Types
@@ -192,6 +203,14 @@ TypeScript type that represents the valid entity types: 'event' | 'reminder'.
 #### `CalendarType`
 
 TypeScript type that represents the valid calendar types: 'local' | 'calDAV' | 'exchange' | 'subscription' | 'birthday' | 'unknown'.
+
+#### `ColorSpace`
+
+TypeScript type that represents the valid color spaces: 'rgb' | 'monochrome' | 'cmyk' | 'lab' | 'deviceN' | 'indexed' | 'pattern' | 'unknown'.
+
+#### `CalendarColor`
+
+TypeScript interface that represents a color with multiple representations to prevent data loss.
 
 #### `Calendar`
 

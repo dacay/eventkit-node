@@ -19,7 +19,14 @@ Napi::Object CalendarToJSObject(const Napi::CallbackInfo& info, Calendar *calend
     jsObject.Set("title", Napi::String::New(env, [calendar.title UTF8String]));
     jsObject.Set("allowsContentModifications", Napi::Boolean::New(env, calendar.allowsContentModifications));
     jsObject.Set("type", Napi::String::New(env, [calendar.type UTF8String]));
-    jsObject.Set("color", Napi::String::New(env, [calendar.color UTF8String]));
+    
+    // Create a color object with all representations
+    Napi::Object colorObject = Napi::Object::New(env);
+    colorObject.Set("hex", Napi::String::New(env, [calendar.colorHex UTF8String]));
+    colorObject.Set("components", Napi::String::New(env, [calendar.colorComponents UTF8String]));
+    colorObject.Set("space", Napi::String::New(env, [calendar.colorSpace UTF8String]));
+    
+    jsObject.Set("color", colorObject);
     jsObject.Set("source", Napi::String::New(env, [calendar.source UTF8String]));
     
     return jsObject;

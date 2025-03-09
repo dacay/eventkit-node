@@ -7,6 +7,21 @@ export type EntityType = 'event' | 'reminder';
  */
 export type CalendarType = 'local' | 'calDAV' | 'exchange' | 'subscription' | 'birthday' | 'unknown';
 /**
+ * Color space
+ */
+export type ColorSpace = 'rgb' | 'monochrome' | 'cmyk' | 'lab' | 'deviceN' | 'indexed' | 'pattern' | 'unknown';
+/**
+ * Color representation with multiple formats to prevent data loss
+ */
+export interface CalendarColor {
+    /** Hex color code with alpha (#RRGGBBAA) */
+    hex: string;
+    /** Raw color components as comma-separated values */
+    components: string;
+    /** Color space of the original color */
+    space: ColorSpace;
+}
+/**
  * Calendar object representing an EKCalendar
  */
 export interface Calendar {
@@ -18,8 +33,8 @@ export interface Calendar {
     allowsContentModifications: boolean;
     /** Type of the calendar (local, calDAV, etc.) */
     type: CalendarType;
-    /** Color of the calendar as a comma-separated RGBA string */
-    color: string;
+    /** Color of the calendar with multiple representations */
+    color: CalendarColor;
     /** Source of the calendar (e.g., iCloud, Google) */
     source: string;
 }

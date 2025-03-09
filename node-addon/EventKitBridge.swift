@@ -23,7 +23,9 @@ import Foundation
         @objc public let title: String
         @objc public let allowsContentModifications: Bool
         @objc public let type: String
-        @objc public let color: String
+        @objc public let colorHex: String
+        @objc public let colorComponents: String
+        @objc public let colorSpace: String
         @objc public let source: String
         
         init(from ekCalendar: EKCalendar) {
@@ -36,15 +38,45 @@ import Foundation
                         ekCalendar.type == .subscription ? "subscription" : 
                         ekCalendar.type == .birthday ? "birthday" : "unknown"
             
-            // Convert CGColor to string representation
-            if let components = ekCalendar.cgColor.components, ekCalendar.cgColor.numberOfComponents >= 4 {
-                let r = String(format: "%.2f", components[0])
-                let g = String(format: "%.2f", components[1])
-                let b = String(format: "%.2f", components[2])
-                let a = String(format: "%.2f", components[3])
-                self.color = "\(r),\(g),\(b),\(a)"
+            // Store color space information
+            if let colorSpace = ekCalendar.cgColor.colorSpace {
+                switch colorSpace.model {
+                case .rgb: self.colorSpace = "rgb"
+                case .monochrome: self.colorSpace = "monochrome"
+                case .cmyk: self.colorSpace = "cmyk"
+                case .lab: self.colorSpace = "lab"
+                case .deviceN: self.colorSpace = "deviceN"
+                case .indexed: self.colorSpace = "indexed"
+                case .pattern: self.colorSpace = "pattern"
+                case .unknown: self.colorSpace = "unknown"
+                @unknown default: self.colorSpace = "unknown"
+                }
             } else {
-                self.color = "0.00,0.00,0.00,0.00"
+                self.colorSpace = "unknown"
+            }
+            
+            // Store raw color components as a string
+            if let components = ekCalendar.cgColor.components {
+                let componentStrings = components.map { String(format: "%.6f", $0) }
+                self.colorComponents = componentStrings.joined(separator: ",")
+            } else {
+                self.colorComponents = ""
+            }
+            
+            // Convert to hex for convenience (RGB approximation)
+            if let components = ekCalendar.cgColor.components, ekCalendar.cgColor.numberOfComponents >= 4 {
+                let r = Int(components[0] * 255.0)
+                let g = Int(components[1] * 255.0)
+                let b = Int(components[2] * 255.0)
+                let a = Int(components[3] * 255.0)
+                self.colorHex = String(format: "#%02X%02X%02X%02X", r, g, b, a)
+            } else if let components = ekCalendar.cgColor.components, ekCalendar.cgColor.numberOfComponents >= 1 {
+                // Handle grayscale
+                let gray = Int(components[0] * 255.0)
+                let a = ekCalendar.cgColor.numberOfComponents >= 2 ? Int(components[1] * 255.0) : 255
+                self.colorHex = String(format: "#%02X%02X%02X%02X", gray, gray, gray, a)
+            } else {
+                self.colorHex = "#00000000" // Transparent black as fallback
             }
             
             self.source = ekCalendar.source.title
