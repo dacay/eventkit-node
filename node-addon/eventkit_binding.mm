@@ -26,8 +26,17 @@ Napi::Array NSArrayToJSArray(const Napi::CallbackInfo& info, NSArray<NSString *>
 Napi::Value GetCalendars(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     
+    // Get the entity type parameter, default to "event"
+    std::string entityType = "event";
+    if (info.Length() > 0 && info[0].IsString()) {
+        entityType = info[0].As<Napi::String>().Utf8Value();
+    }
+    
+    // Create an NSString from the entity type
+    NSString* entityTypeString = [NSString stringWithUTF8String:entityType.c_str()];
+    
     EventKitBridge *bridge = [[EventKitBridge alloc] init];
-    NSArray<NSString *> *calendars = [bridge getCalendars];
+    NSArray<NSString *> *calendars = [bridge getCalendarsWithEntityTypeString:entityTypeString];
     
     return NSArrayToJSArray(info, calendars);
 }

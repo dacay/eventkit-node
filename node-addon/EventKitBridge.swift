@@ -17,8 +17,9 @@ import Foundation
         }
     }
 
-    @objc public func getCalendars() -> [String] {
-        let calendars = eventStore.calendars(for: .event)
+    @objc public func getCalendars(entityTypeString: String = "event") -> [String] {
+        let entityType: EKEntityType = entityTypeString.lowercased() == "reminder" ? .reminder : .event
+        let calendars = eventStore.calendars(for: entityType)
         return calendars.map { $0.title }
     }
 
