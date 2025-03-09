@@ -3,11 +3,27 @@
   "author": "Deniz Acay",
   "license": "MIT",
   "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "swift build -c release && cp .build/release/libEventKitBridge.a ./ && node-gyp rebuild",
-    "clean": "rm -rf build .build libEventKitBridge.a"
+    "clean": "rm -rf build .build libEventKitBridge.a dist",
+    "build:ts": "tsc",
+    "prepublishOnly": "npm run clean && npm run build && npm run build:ts"
   },
   "dependencies": {
     "node-addon-api": "^8.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.24",
+    "typescript": "^5.8.2"
+  },
+  "files": [
+    "dist",
+    "build/Release/eventkit.node",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
