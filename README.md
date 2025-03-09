@@ -24,10 +24,14 @@ npm run build:ts
 
 ## Usage
 
-### JavaScript
+### JavaScript (CommonJS)
+
+You can import the module in two ways:
+
+#### Object-style import:
 
 ```javascript
-const eventkit = require('eventkit-node');
+const eventkit = require('eventkit-node').default;
 
 // Request calendar access
 eventkit.requestCalendarAccess().then(granted => {
@@ -45,7 +49,32 @@ eventkit.requestCalendarAccess().then(granted => {
 });
 ```
 
+#### Named imports:
+
+```javascript
+const { requestCalendarAccess, getCalendars } = require('eventkit-node');
+
+// Request calendar access
+requestCalendarAccess().then(granted => {
+  console.log('Calendar access granted:', granted);
+  
+  if (granted) {
+    // Get all event calendars (default)
+    const eventCalendars = getCalendars();
+    console.log('Event calendars:', eventCalendars);
+    
+    // Get reminder calendars
+    const reminderCalendars = getCalendars('reminder');
+    console.log('Reminder calendars:', reminderCalendars);
+  }
+});
+```
+
 ### TypeScript
+
+You can also import the module in two ways:
+
+#### Default import:
 
 ```typescript
 import eventkit from 'eventkit-node';
@@ -70,6 +99,36 @@ async function main() {
 }
 ```
 
+#### Named imports:
+
+```typescript
+import { requestCalendarAccess, getCalendars, EntityType } from 'eventkit-node';
+
+async function main() {
+  // Request calendar access
+  const granted = await requestCalendarAccess();
+  console.log('Calendar access granted:', granted);
+  
+  if (granted) {
+    // Get all event calendars (default)
+    const eventCalendars = getCalendars();
+    console.log('Event calendars:', eventCalendars);
+    
+    // Get reminder calendars
+    const reminderCalendars = getCalendars('reminder');
+    console.log('Reminder calendars:', reminderCalendars);
+    
+    // You can also use the EntityType in your own functions
+    function processCalendars(type: EntityType) {
+      return getCalendars(type);
+    }
+    
+    // TypeScript will catch this error at compile time:
+    // const invalidCalendars = getCalendars('invalid');
+  }
+}
+```
+
 ## API
 
 ### `requestCalendarAccess()`
@@ -81,6 +140,10 @@ Requests access to the calendar and returns a promise that resolves to a boolean
 Gets a list of calendar titles for the specified entity type.
 
 - `entityType`: Optional. The type of entity to get calendars for. Can be either 'event' (default) or 'reminder'.
+
+### `EntityType`
+
+TypeScript type that represents the valid entity types: 'event' | 'reminder'.
 
 ## Troubleshooting
 
