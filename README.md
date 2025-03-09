@@ -45,6 +45,15 @@ eventkit.requestCalendarAccess().then(granted => {
     // Get reminder calendars
     const reminderCalendars = eventkit.getCalendars('reminder');
     console.log('Reminder calendars:', reminderCalendars);
+    
+    // Access calendar properties
+    eventCalendars.forEach(calendar => {
+      console.log(`Calendar: ${calendar.title}`);
+      console.log(`  ID: ${calendar.id}`);
+      console.log(`  Type: ${calendar.type}`);
+      console.log(`  Source: ${calendar.source}`);
+      console.log(`  Allows modifications: ${calendar.allowsContentModifications}`);
+    });
   }
 });
 ```
@@ -66,6 +75,14 @@ requestCalendarAccess().then(granted => {
     // Get reminder calendars
     const reminderCalendars = getCalendars('reminder');
     console.log('Reminder calendars:', reminderCalendars);
+    
+    // Access calendar properties
+    eventCalendars.forEach(calendar => {
+      console.log(`Calendar: ${calendar.title}`);
+      console.log(`  ID: ${calendar.id}`);
+      console.log(`  Type: ${calendar.type}`);
+      console.log(`  Source: ${calendar.source}`);
+    });
   }
 });
 ```
@@ -93,6 +110,14 @@ async function main() {
     const reminderCalendars = eventkit.getCalendars('reminder');
     console.log('Reminder calendars:', reminderCalendars);
     
+    // TypeScript knows the calendar structure
+    eventCalendars.forEach(calendar => {
+      console.log(`Calendar: ${calendar.title}`);
+      console.log(`  ID: ${calendar.id}`);
+      console.log(`  Type: ${calendar.type}`);
+      console.log(`  Source: ${calendar.source}`);
+    });
+    
     // TypeScript will catch this error at compile time:
     // const invalidCalendars = eventkit.getCalendars('invalid');
   }
@@ -102,7 +127,7 @@ async function main() {
 #### Named imports:
 
 ```typescript
-import { requestCalendarAccess, getCalendars, EntityType } from 'eventkit-node';
+import { requestCalendarAccess, getCalendars, EntityType, Calendar } from 'eventkit-node';
 
 async function main() {
   // Request calendar access
@@ -119,9 +144,17 @@ async function main() {
     console.log('Reminder calendars:', reminderCalendars);
     
     // You can also use the EntityType in your own functions
-    function processCalendars(type: EntityType) {
+    function processCalendars(type: EntityType): Calendar[] {
       return getCalendars(type);
     }
+    
+    // Process and display calendars
+    processCalendars('event').forEach(calendar => {
+      console.log(`Calendar: ${calendar.title}`);
+      console.log(`  ID: ${calendar.id}`);
+      console.log(`  Type: ${calendar.type}`);
+      console.log(`  Source: ${calendar.source}`);
+    });
     
     // TypeScript will catch this error at compile time:
     // const invalidCalendars = getCalendars('invalid');
@@ -137,13 +170,32 @@ Requests access to the calendar and returns a promise that resolves to a boolean
 
 ### `getCalendars(entityType?: 'event' | 'reminder')`
 
-Gets a list of calendar titles for the specified entity type.
+Gets a list of calendar objects for the specified entity type.
 
 - `entityType`: Optional. The type of entity to get calendars for. Can be either 'event' (default) or 'reminder'.
 
-### `EntityType`
+Returns an array of `Calendar` objects with the following properties:
+
+- `id`: Unique identifier for the calendar
+- `title`: Display name of the calendar
+- `allowsContentModifications`: Whether the calendar allows content modifications
+- `type`: Type of the calendar ('local', 'calDAV', 'exchange', 'subscription', 'birthday', or 'unknown')
+- `color`: Color of the calendar as a comma-separated RGBA string
+- `source`: Source of the calendar (e.g., iCloud, Google)
+
+### Types
+
+#### `EntityType`
 
 TypeScript type that represents the valid entity types: 'event' | 'reminder'.
+
+#### `CalendarType`
+
+TypeScript type that represents the valid calendar types: 'local' | 'calDAV' | 'exchange' | 'subscription' | 'birthday' | 'unknown'.
+
+#### `Calendar`
+
+TypeScript interface that represents a calendar object.
 
 ## Troubleshooting
 

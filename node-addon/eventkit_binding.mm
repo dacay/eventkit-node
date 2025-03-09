@@ -10,13 +10,28 @@
 #import <EventKit/EventKit.h>
 #import "eventkit_node-Swift.h" // Generated header from Swift
 
-// Helper to convert NSArray to JS array
-Napi::Array NSArrayToJSArray(const Napi::CallbackInfo& info, NSArray<NSString *> *array) {
+// Helper to convert Calendar object to JS object
+Napi::Object CalendarToJSObject(const Napi::CallbackInfo& info, Calendar *calendar) {
     Napi::Env env = info.Env();
-    Napi::Array jsArray = Napi::Array::New(env, [array count]);
+    Napi::Object jsObject = Napi::Object::New(env);
     
-    for (NSUInteger i = 0; i < [array count]; i++) {
-        jsArray.Set(i, Napi::String::New(env, [array[i] UTF8String]));
+    jsObject.Set("id", Napi::String::New(env, [calendar.id UTF8String]));
+    jsObject.Set("title", Napi::String::New(env, [calendar.title UTF8String]));
+    jsObject.Set("allowsContentModifications", Napi::Boolean::New(env, calendar.allowsContentModifications));
+    jsObject.Set("type", Napi::String::New(env, [calendar.type UTF8String]));
+    jsObject.Set("color", Napi::String::New(env, [calendar.color UTF8String]));
+    jsObject.Set("source", Napi::String::New(env, [calendar.source UTF8String]));
+    
+    return jsObject;
+}
+
+// Helper to convert NSArray of Calendar objects to JS array
+Napi::Array CalendarArrayToJSArray(const Napi::CallbackInfo& info, NSArray<Calendar *> *calendars) {
+    Napi::Env env = info.Env();
+    Napi::Array jsArray = Napi::Array::New(env, [calendars count]);
+    
+    for (NSUInteger i = 0; i < [calendars count]; i++) {
+        jsArray.Set(i, CalendarToJSObject(info, calendars[i]));
     }
     
     return jsArray;
@@ -30,15 +45,26 @@ Napi::Value GetCalendars(const Napi::CallbackInfo& info) {
     std::string entityType = "event";
     if (info.Length() > 0 && info[0].IsString()) {
         entityType = info[0].As<Napi::String>().Utf8Value();
+        
+        // Convert to lowercase for case-insensitive comparison
+        std::transform(entityType.begin(), entityType.end(), entityType.begin(),
+                      [](unsigned char c) { return std::tolower(c); });
+        
+        // Validate entity type
+        if (entityType != "event" && entityType != "reminder") {
+            Napi::Error::New(env, "Invalid entity type. Allowed values are 'event' and 'reminder'.")
+                .ThrowAsJavaScriptException();
+            return env.Undefined();
+        }
     }
     
     // Create an NSString from the entity type
     NSString* entityTypeString = [NSString stringWithUTF8String:entityType.c_str()];
     
     EventKitBridge *bridge = [[EventKitBridge alloc] init];
-    NSArray<NSString *> *calendars = [bridge getCalendarsWithEntityTypeString:entityTypeString];
+    NSArray<Calendar *> *calendars = [bridge getCalendarsWithEntityTypeString:entityTypeString];
     
-    return NSArrayToJSArray(info, calendars);
+    return CalendarArrayToJSArray(info, calendars);
 }
 
 // Class to handle the calendar access request

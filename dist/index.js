@@ -15,7 +15,7 @@ function requestCalendarAccess() {
 /**
  * Get calendars for the specified entity type
  * @param entityType - The entity type ('event' or 'reminder')
- * @returns An array of calendar titles
+ * @returns An array of Calendar objects
  * @throws Error if an invalid entity type is provided
  */
 function getCalendars(entityType = 'event') {

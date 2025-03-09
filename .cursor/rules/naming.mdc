@@ -1,0 +1,7 @@
+---
+description: Used when deciding on names for types or functions
+globs:
+alwaysApply: true
+---
+- Use function names that reflect the native EventKit names but use Javasript conventions (e.g. you can use getCalendars for EKEventStore.calendars(for:) method
+- Use simplified type names when creating types for EventKit types (e.g. we can use Calendar for representing EKCalendar)
