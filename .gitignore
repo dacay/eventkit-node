@@ -53,6 +53,10 @@ Package.resolved
 *.sln
 *.sw?
 
+# Husky folder
+.husky/
+
 # Project specific
 libEventKitBridge.a
 node-addon/eventkit_node-Swift.h 
+
