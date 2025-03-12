@@ -12,6 +12,7 @@ build/
 .build/
 Release/
 Debug/
+dist/
 *.node
 *.o
 *.a

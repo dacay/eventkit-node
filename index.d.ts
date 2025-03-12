@@ -27,6 +27,7 @@ export interface CalendarColor {
 
 /**
  * Calendar object representing an EKCalendar
+ * @see https://developer.apple.com/documentation/eventkit/ekcalendar
  */
 export interface Calendar {
   /** Unique identifier for the calendar */
@@ -44,23 +45,75 @@ export interface Calendar {
 }
 
 /**
- * Request access to the calendar
+ * Type alias for a reminder list
+ * Represents a calendar that contains reminders
+ * @see https://developer.apple.com/documentation/eventkit/ekcalendar
+ */
+export type ReminderList = Calendar;
+
+/**
+ * Request full access to calendar events
+ * Similar to EKEventStore.requestFullAccessToEvents in EventKit
  * @returns A promise that resolves to true if access was granted, false otherwise
  */
-export function requestCalendarAccess(): Promise<boolean>;
+export function requestFullAccessToEvents(): Promise<boolean>;
+
+/**
+ * Request full access to reminders
+ * Similar to EKEventStore.requestFullAccessToReminders in EventKit
+ * @returns A promise that resolves to true if access was granted, false otherwise
+ */
+export function requestFullAccessToReminders(): Promise<boolean>;
 
 /**
  * Get calendars for the specified entity type
+ * Similar to EKEventStore.calendars(for:) in EventKit
  * @param entityType - The entity type ('event' or 'reminder')
  * @returns An array of Calendar objects
  */
 export function getCalendars(entityType?: EntityType): Calendar[];
 
 /**
+ * Simplified API interface
+ */
+export interface SimpleAPI {
+  /**
+   * Get event calendars
+   * @returns An array of Calendar objects representing event calendars
+   */
+  getCalendars(): Calendar[];
+  
+  /**
+   * Get reminder lists
+   * @returns An array of Calendar objects representing reminder lists
+   */
+  getReminderLists(): ReminderList[];
+  
+  /**
+   * Request access to calendar events
+   * @returns A promise that resolves to true if access was granted, false otherwise
+   */
+  requestCalendarAccess(): Promise<boolean>;
+  
+  /**
+   * Request access to reminders
+   * @returns A promise that resolves to true if access was granted, false otherwise
+   */
+  requestRemindersAccess(): Promise<boolean>;
+}
+
+/**
+ * Simplified API module
+ * Provides more intuitive function names for common operations
+ */
+export const simple: SimpleAPI;
+
+/**
  * EventKit interface for the default export
  */
 export interface EventKit {
-  requestCalendarAccess(): Promise<boolean>;
+  requestFullAccessToEvents(): Promise<boolean>;
+  requestFullAccessToReminders(): Promise<boolean>;
   getCalendars(entityType?: EntityType): Calendar[];
 }
 

@@ -12,8 +12,28 @@ import Foundation
     private let eventStore = EKEventStore()
 
     @objc public func requestCalendarAccess(completion: @escaping (Bool) -> Void) {
-        eventStore.requestAccess(to: .event) { granted, error in
-            completion(granted)
+        if #available(macOS 14.0, *) {
+            eventStore.requestFullAccessToEvents { granted, error in
+                completion(granted)
+            }
+        } else {
+            // Fall back to the older API for macOS 10.15-13.x
+            eventStore.requestAccess(to: .event) { granted, error in
+                completion(granted)
+            }
+        }
+    }
+    
+    @objc public func requestRemindersAccess(completion: @escaping (Bool) -> Void) {
+        if #available(macOS 14.0, *) {
+            eventStore.requestFullAccessToReminders { granted, error in
+                completion(granted)
+            }
+        } else {
+            // Fall back to the older API for macOS 10.15-13.x
+            eventStore.requestAccess(to: .reminder) { granted, error in
+                completion(granted)
+            }
         }
     }
 
@@ -48,6 +68,7 @@ import Foundation
                 case .deviceN: self.colorSpace = "deviceN"
                 case .indexed: self.colorSpace = "indexed"
                 case .pattern: self.colorSpace = "pattern"
+                case .XYZ: self.colorSpace = "xyz"
                 case .unknown: self.colorSpace = "unknown"
                 @unknown default: self.colorSpace = "unknown"
                 }
