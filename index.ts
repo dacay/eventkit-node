@@ -444,4 +444,25 @@ export function getEventsWithPredicate(predicate: Predicate): Event[] {
   }
   
   return nativeModule.getEventsWithPredicate(predicate);
+}
+
+/**
+ * Get reminders matching a predicate
+ * @param predicate - The predicate to match reminders against
+ * @returns A promise that resolves to an array of Reminder objects matching the predicate
+ * 
+ * @example
+ * // Get incomplete reminders
+ * const predicate = createIncompleteReminderPredicate();
+ * const reminders = await getRemindersWithPredicate(predicate);
+ */
+export function getRemindersWithPredicate(predicate: Predicate): Promise<Reminder[]> {
+  // Check if the predicate type is valid for reminders
+  if (predicate.type !== 'reminder' && 
+      predicate.type !== 'incompleteReminder' && 
+      predicate.type !== 'completedReminder') {
+    throw new Error(`Invalid predicate type: ${predicate.type}. Must be 'reminder', 'incompleteReminder', or 'completedReminder'.`);
+  }
+  
+  return nativeModule.getRemindersWithPredicate(predicate);
 } 

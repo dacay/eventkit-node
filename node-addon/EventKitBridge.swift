@@ -528,4 +528,39 @@ import Foundation
         
         return result
     }
+    
+    @objc public func getRemindersWithPredicate(_ predicate: Predicate, completion: @escaping ([Reminder]?) -> Void) {
+        // Validate that this is a reminder predicate
+        guard predicate.predicateType.lowercased().contains("reminder") else {
+            print("Error: Predicate type does not contain 'reminder': \(predicate.predicateType)")
+            completion([])
+            return
+        }
+        
+        // Create a strong reference to the predicate to prevent it from being deallocated
+        let strongPredicate = predicate
+        
+        // Fetch reminders using EventKit's asynchronous API
+        eventStore.fetchReminders(matching: strongPredicate.predicate) { [weak self] ekReminders in
+            // Check if self is still alive
+            guard self != nil else {
+                completion([])
+                return
+            }
+            
+            if let ekReminders = ekReminders {
+                // Create a strong reference to the reminders to prevent them from being deallocated
+                let strongReminders = ekReminders
+                
+                // Map EKReminder objects to our Reminder objects
+                let reminders = strongReminders.map { Reminder(from: $0) }
+                
+                // Call the completion handler with the reminders
+                completion(reminders)
+            } else {
+                // If nil is returned, return an empty array
+                completion([])
+            }
+        }
+    }
 } 

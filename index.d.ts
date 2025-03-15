@@ -387,6 +387,18 @@ export function createCompletedReminderPredicate(startDate?: Date, endDate?: Dat
 export function getEventsWithPredicate(predicate: Predicate): Event[];
 
 /**
+ * Get reminders matching a predicate
+ * @param predicate - The predicate to match reminders against
+ * @returns A promise that resolves to an array of Reminder objects matching the predicate
+ * 
+ * @example
+ * // Get incomplete reminders
+ * const predicate = createIncompleteReminderPredicate();
+ * const reminders = await getRemindersWithPredicate(predicate);
+ */
+export function getRemindersWithPredicate(predicate: Predicate): Promise<Reminder[]>;
+
+/**
  * Get events within a specific date range
  * @param startDate - The start date of the range
  * @param endDate - The end date of the range
