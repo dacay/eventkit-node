@@ -11,11 +11,11 @@ This document provides detailed examples of how to use the EventKit Node.js addo
 const eventkit = require('eventkit-node').default;
 
 // Option 2: Simplified API (destructuring from simple)
-const { requestCalendarAccess, getCalendars, getReminderLists, requestRemindersAccess } = require('eventkit-node').simple;
+const { requestCalendarAccess, getCalendars, getReminderLists, requestRemindersAccess, getCalendar } = require('eventkit-node').simple;
 
 // Option 3: Mixed approach (both APIs)
 const eventkit = require('eventkit-node').default;
-const { requestCalendarAccess, getCalendars } = require('eventkit-node').simple;
+const { requestCalendarAccess, getCalendars, getCalendar } = require('eventkit-node').simple;
 ```
 
 ### Using the EventKit-like API
@@ -46,6 +46,13 @@ eventkit.requestFullAccessToEvents()
         console.log(`  Source: ${calendar.source}`);
         console.log(`  Allows modifications: ${calendar.allowsContentModifications}`);
       });
+      
+      // Get a specific calendar by ID
+      if (eventCalendars.length > 0) {
+        const calendarId = eventCalendars[0].id;
+        const specificCalendar = eventkit.getCalendar(calendarId);
+        console.log('Specific calendar:', specificCalendar);
+      }
       
       // Get reminder lists
       const reminderLists = eventkit.getCalendars('reminder');
@@ -85,6 +92,13 @@ async function accessCalendars() {
         console.log(`  Allows modifications: ${calendar.allowsContentModifications}`);
       });
       
+      // Get a specific calendar by ID
+      if (eventCalendars.length > 0) {
+        const calendarId = eventCalendars[0].id;
+        const specificCalendar = eventkit.getCalendar(calendarId);
+        console.log('Specific calendar:', specificCalendar);
+      }
+      
       // Get reminder lists
       const reminderLists = eventkit.getCalendars('reminder');
       console.log('Reminder lists:', reminderLists);
@@ -104,7 +118,7 @@ accessCalendars();
 
 ```javascript
 // Import the simplified API by destructuring from simple
-const { requestCalendarAccess, requestRemindersAccess, getCalendars, getReminderLists } = require('eventkit-node').simple;
+const { requestCalendarAccess, requestRemindersAccess, getCalendars, getReminderLists, getCalendar } = require('eventkit-node').simple;
 
 // Request calendar access
 requestCalendarAccess()
@@ -115,6 +129,13 @@ requestCalendarAccess()
       // Get event calendars
       const eventCalendars = getCalendars();
       console.log('Event calendars:', eventCalendars);
+      
+      // Get a specific calendar by ID
+      if (eventCalendars.length > 0) {
+        const calendarId = eventCalendars[0].id;
+        const specificCalendar = getCalendar(calendarId);
+        console.log('Specific calendar:', specificCalendar);
+      }
     }
     
     // Request reminders access
@@ -137,6 +158,13 @@ requestCalendarAccess()
         console.log(`  Color components: ${list.color.components}`);
         console.log(`  Source: ${list.source}`);
       });
+      
+      // Get a specific reminder list by ID
+      if (reminderLists.length > 0) {
+        const reminderListId = reminderLists[0].id;
+        const specificReminderList = getCalendar(reminderListId);
+        console.log('Specific reminder list:', specificReminderList);
+      }
     }
   })
   .catch(error => {
@@ -148,7 +176,7 @@ requestCalendarAccess()
 
 ```javascript
 // Import the simplified API by destructuring from simple
-const { requestCalendarAccess, requestRemindersAccess, getCalendars, getReminderLists } = require('eventkit-node').simple;
+const { requestCalendarAccess, requestRemindersAccess, getCalendars, getReminderLists, getCalendar } = require('eventkit-node').simple;
 
 async function accessCalendarsAndReminders() {
   try {
@@ -160,6 +188,13 @@ async function accessCalendarsAndReminders() {
       // Get event calendars
       const eventCalendars = getCalendars();
       console.log('Event calendars:', eventCalendars);
+      
+      // Get a specific calendar by ID
+      if (eventCalendars.length > 0) {
+        const calendarId = eventCalendars[0].id;
+        const specificCalendar = getCalendar(calendarId);
+        console.log('Specific calendar:', specificCalendar);
+      }
     }
     
     // Request reminders access
@@ -180,6 +215,13 @@ async function accessCalendarsAndReminders() {
         console.log(`  Color components: ${list.color.components}`);
         console.log(`  Source: ${list.source}`);
       });
+      
+      // Get a specific reminder list by ID
+      if (reminderLists.length > 0) {
+        const reminderListId = reminderLists[0].id;
+        const specificReminderList = getCalendar(reminderListId);
+        console.log('Specific reminder list:', specificReminderList);
+      }
     }
   } catch (error) {
     console.error('Error accessing calendars or reminders:', error);
@@ -195,7 +237,7 @@ accessCalendarsAndReminders();
 ```javascript
 // Import both APIs
 const eventkit = require('eventkit-node').default;
-const { requestCalendarAccess, getCalendars } = require('eventkit-node').simple;
+const { requestCalendarAccess, getCalendars, getCalendar } = require('eventkit-node').simple;
 
 async function accessEverything() {
   try {
@@ -215,6 +257,13 @@ async function accessEverything() {
         eventCalendars.forEach(calendar => {
           console.log(`Event Calendar: ${calendar.title}`);
         });
+        
+        // Get a specific calendar using simplified API
+        if (eventCalendars.length > 0) {
+          const calendarId = eventCalendars[0].id;
+          const specificCalendar = getCalendar(calendarId);
+          console.log('Specific calendar (simplified API):', specificCalendar);
+        }
       }
       
       if (remindersAccessGranted) {
@@ -223,6 +272,13 @@ async function accessEverything() {
         reminderLists.forEach(list => {
           console.log(`Reminder List: ${list.title}`);
         });
+        
+        // Get a specific reminder list using EventKit-like API
+        if (reminderLists.length > 0) {
+          const reminderListId = reminderLists[0].id;
+          const specificReminderList = eventkit.getCalendar(reminderListId);
+          console.log('Specific reminder list (EventKit-like API):', specificReminderList);
+        }
       }
     }
   } catch (error) {
@@ -244,12 +300,12 @@ import eventkit from 'eventkit-node';
 
 // Option 2: Simplified API (destructuring from simple) with type imports
 import { simple, Calendar, ReminderList } from 'eventkit-node';
-const { requestCalendarAccess, getCalendars, getReminderLists, requestRemindersAccess } = simple;
+const { requestCalendarAccess, getCalendars, getReminderLists, requestRemindersAccess, getCalendar } = simple;
 
 // Option 3: Mixed approach (both APIs) with type imports
 import eventkit from 'eventkit-node';
 import { simple, Calendar, ReminderList } from 'eventkit-node';
-const { requestCalendarAccess, getCalendars } = simple;
+const { requestCalendarAccess, getCalendars, getCalendar } = simple;
 ```
 
 ### Using the EventKit-like API
@@ -280,6 +336,13 @@ async function accessCalendars() {
         console.log(`  Allows modifications: ${calendar.allowsContentModifications}`);
       });
       
+      // Get a specific calendar by ID
+      if (eventCalendars.length > 0) {
+        const calendarId: string = eventCalendars[0].id;
+        const specificCalendar: Calendar | null = eventkit.getCalendar(calendarId);
+        console.log('Specific calendar:', specificCalendar);
+      }
+      
       // Get reminder lists
       const reminderLists: Calendar[] = eventkit.getCalendars('reminder');
       console.log('Reminder lists:', reminderLists);
@@ -298,7 +361,7 @@ accessCalendars();
 ```typescript
 // Import the simplified API by destructuring from simple
 import { simple, Calendar, ReminderList } from 'eventkit-node';
-const { requestCalendarAccess, requestRemindersAccess, getCalendars, getReminderLists } = simple;
+const { requestCalendarAccess, requestRemindersAccess, getCalendars, getReminderLists, getCalendar } = simple;
 
 async function accessCalendarsAndReminders() {
   try {
@@ -310,6 +373,13 @@ async function accessCalendarsAndReminders() {
       // Get event calendars
       const eventCalendars: Calendar[] = getCalendars();
       console.log('Event calendars:', eventCalendars);
+      
+      // Get a specific calendar by ID
+      if (eventCalendars.length > 0) {
+        const calendarId: string = eventCalendars[0].id;
+        const specificCalendar: Calendar | null = getCalendar(calendarId);
+        console.log('Specific calendar:', specificCalendar);
+      }
     }
     
     // Request reminders access
@@ -330,6 +400,13 @@ async function accessCalendarsAndReminders() {
         console.log(`  Color space: ${list.color.space}`);
         console.log(`  Source: ${list.source}`);
       });
+      
+      // Get a specific reminder list by ID
+      if (reminderLists.length > 0) {
+        const reminderListId: string = reminderLists[0].id;
+        const specificReminderList: ReminderList | null = getCalendar(reminderListId);
+        console.log('Specific reminder list:', specificReminderList);
+      }
     }
   } catch (error) {
     console.error('Error accessing calendars or reminders:', error);
@@ -346,7 +423,7 @@ accessCalendarsAndReminders();
 // Import both APIs
 import eventkit from 'eventkit-node';
 import { simple, Calendar, ReminderList } from 'eventkit-node';
-const { requestCalendarAccess, getCalendars } = simple;
+const { requestCalendarAccess, getCalendars, getCalendar } = simple;
 
 async function accessEverything() {
   try {
@@ -366,6 +443,13 @@ async function accessEverything() {
         eventCalendars.forEach(calendar => {
           console.log(`Event Calendar: ${calendar.title}`);
         });
+        
+        // Get a specific calendar using simplified API
+        if (eventCalendars.length > 0) {
+          const calendarId: string = eventCalendars[0].id;
+          const specificCalendar: Calendar | null = getCalendar(calendarId);
+          console.log('Specific calendar (simplified API):', specificCalendar);
+        }
       }
       
       if (remindersAccessGranted) {
@@ -374,6 +458,13 @@ async function accessEverything() {
         reminderLists.forEach(list => {
           console.log(`Reminder List: ${list.title}`);
         });
+        
+        // Get a specific reminder list using EventKit-like API
+        if (reminderLists.length > 0) {
+          const reminderListId: string = reminderLists[0].id;
+          const specificReminderList: ReminderList | null = eventkit.getCalendar(reminderListId);
+          console.log('Specific reminder list (EventKit-like API):', specificReminderList);
+        }
       }
     }
   } catch (error) {

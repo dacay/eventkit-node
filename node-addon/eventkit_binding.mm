@@ -74,6 +74,34 @@ Napi::Value GetCalendars(const Napi::CallbackInfo& info) {
     return CalendarArrayToJSArray(info, calendars);
 }
 
+// GetCalendar function
+Napi::Value GetCalendar(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Check if identifier parameter is provided
+    if (info.Length() < 1 || !info[0].IsString()) {
+        Napi::Error::New(env, "Calendar identifier is required and must be a string.")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    // Get the identifier parameter
+    std::string identifier = info[0].As<Napi::String>().Utf8Value();
+    
+    // Create an NSString from the identifier
+    NSString* identifierString = [NSString stringWithUTF8String:identifier.c_str()];
+    
+    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    Calendar *calendar = [bridge getCalendarWithIdentifier:identifierString];
+    
+    // Return null if calendar is not found
+    if (calendar == nil) {
+        return env.Null();
+    }
+    
+    return CalendarToJSObject(info, calendar);
+}
+
 // Class to handle the calendar access request
 class CalendarAccessWorker : public Napi::AsyncWorker {
 public:
@@ -193,6 +221,7 @@ Napi::Value RequestRemindersAccess(const Napi::CallbackInfo& info) {
 // Initialize the module
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getCalendars", Napi::Function::New(env, GetCalendars));
+    exports.Set("getCalendar", Napi::Function::New(env, GetCalendar));
     exports.Set("requestCalendarAccess", Napi::Function::New(env, RequestCalendarAccess));
     exports.Set("requestRemindersAccess", Napi::Function::New(env, RequestRemindersAccess));
     return exports;

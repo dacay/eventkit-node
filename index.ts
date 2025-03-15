@@ -92,11 +92,22 @@ export function getCalendars(entityType: EntityType = 'event'): Calendar[] {
   return nativeModule.getCalendars(normalizedType);
 }
 
+/**
+ * Get a calendar with the specified identifier
+ * Similar to EKEventStore.calendar(withIdentifier:) in EventKit
+ * @param identifier - The unique identifier of the calendar to retrieve
+ * @returns The calendar with the specified identifier, or null if not found
+ */
+export function getCalendar(identifier: string): Calendar | null {
+  return nativeModule.getCalendar(identifier);
+}
+
 // Create a default export object for ES modules compatibility
 const eventkit = {
   requestFullAccessToEvents,
   requestFullAccessToReminders,
-  getCalendars
+  getCalendars,
+  getCalendar
 };
 
 // Export as default for ES modules
@@ -122,6 +133,15 @@ export const simple = {
    */
   getReminderLists(): ReminderList[] {
     return eventkit.getCalendars('reminder');
+  },
+
+  /**
+   * Get a calendar by its identifier
+   * @param identifier - The unique identifier of the calendar to retrieve
+   * @returns The calendar with the specified identifier, or null if not found
+   */
+  getCalendar(identifier: string): Calendar | null {
+    return eventkit.getCalendar(identifier);
   },
 
   /**

@@ -74,6 +74,14 @@ export function requestFullAccessToReminders(): Promise<boolean>;
 export function getCalendars(entityType?: EntityType): Calendar[];
 
 /**
+ * Get a calendar with the specified identifier
+ * Similar to EKEventStore.calendar(withIdentifier:) in EventKit
+ * @param identifier - The unique identifier of the calendar to retrieve
+ * @returns The calendar with the specified identifier, or null if not found
+ */
+export function getCalendar(identifier: string): Calendar | null;
+
+/**
  * Simplified API interface
  */
 export interface SimpleAPI {
@@ -88,6 +96,13 @@ export interface SimpleAPI {
    * @returns An array of Calendar objects representing reminder lists
    */
   getReminderLists(): ReminderList[];
+  
+  /**
+   * Get a calendar by its identifier
+   * @param identifier - The unique identifier of the calendar to retrieve
+   * @returns The calendar with the specified identifier, or null if not found
+   */
+  getCalendar(identifier: string): Calendar | null;
   
   /**
    * Request access to calendar events
@@ -115,6 +130,7 @@ export interface EventKit {
   requestFullAccessToEvents(): Promise<boolean>;
   requestFullAccessToReminders(): Promise<boolean>;
   getCalendars(entityType?: EntityType): Calendar[];
+  getCalendar(identifier: string): Calendar | null;
 }
 
 /**

@@ -89,10 +89,11 @@ Property 'getCalendars' does not exist on type...
 ```typescript
 // Import the module and destructure methods from simple
 import { simple, Calendar, ReminderList } from 'eventkit-node';
-const { requestCalendarAccess, getCalendars } = simple;
+const { requestCalendarAccess, getCalendars, getCalendar } = simple;
 
 // Use with type annotations
 const eventCalendars: Calendar[] = getCalendars();
+const specificCalendar: Calendar | null = getCalendar('calendar-id');
 ```
 
 ### Missing Type Definitions
@@ -115,12 +116,18 @@ If you're getting undefined or null values when accessing calendar properties:
 
 ```javascript
 // Destructure methods from simple
-const { requestCalendarAccess, getCalendars } = require('eventkit-node').simple;
+const { requestCalendarAccess, getCalendars, getCalendar } = require('eventkit-node').simple;
 
 const granted = await requestCalendarAccess();
 if (granted) {
   // Now it's safe to access calendars
   const calendars = getCalendars();
+  
+  // Get a specific calendar
+  if (calendars.length > 0) {
+    const calendar = getCalendar(calendars[0].id);
+    console.log(calendar);
+  }
 }
 ```
 

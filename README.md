@@ -20,7 +20,7 @@ npm install eventkit-node
 
 ```javascript
 // Destructure methods directly from the simple object
-const { requestCalendarAccess, getCalendars } = require('eventkit-node').simple;
+const { requestCalendarAccess, getCalendars, getCalendar } = require('eventkit-node').simple;
 
 async function example() {
   // Request calendar access
@@ -30,6 +30,13 @@ async function example() {
     // Get event calendars
     const calendars = getCalendars();
     console.log('Calendars:', calendars);
+    
+    // Get a specific calendar by ID
+    if (calendars.length > 0) {
+      const calendarId = calendars[0].id;
+      const calendar = getCalendar(calendarId);
+      console.log('Specific calendar:', calendar);
+    }
   }
 }
 
@@ -41,7 +48,7 @@ example();
 ```typescript
 // Import the module and destructure methods from simple
 import { simple, Calendar } from 'eventkit-node';
-const { requestCalendarAccess, getCalendars } = simple;
+const { requestCalendarAccess, getCalendars, getCalendar } = simple;
 
 async function example() {
   const granted = await requestCalendarAccess();
@@ -49,6 +56,13 @@ async function example() {
   if (granted) {
     const calendars: Calendar[] = getCalendars();
     console.log('Calendars:', calendars);
+    
+    // Get a specific calendar by ID
+    if (calendars.length > 0) {
+      const calendarId = calendars[0].id;
+      const calendar: Calendar | null = getCalendar(calendarId);
+      console.log('Specific calendar:', calendar);
+    }
   }
 }
 
@@ -84,6 +98,7 @@ This library offers two API styles:
 | `requestFullAccessToReminders()` | `requestRemindersAccess()` | Request access to reminders |
 | `getCalendars('event')` | `getCalendars()` | Get event calendars |
 | `getCalendars('reminder')` | `getReminderLists()` | Get reminder lists |
+| `getCalendar(id)` | `getCalendar(id)` | Get a specific calendar by ID |
 
 ## Documentation
 

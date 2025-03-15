@@ -109,6 +109,13 @@ import Foundation
         let ekCalendars = eventStore.calendars(for: entityType)
         return ekCalendars.map { Calendar(from: $0) }
     }
+    
+    @objc public func getCalendar(identifier: String) -> Calendar? {
+        guard let ekCalendar = eventStore.calendar(withIdentifier: identifier) else {
+            return nil
+        }
+        return Calendar(from: ekCalendar)
+    }
 
     @objc public func getEvents(startDate: Date, endDate: Date) -> [String] {
         let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)

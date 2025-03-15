@@ -36,17 +36,25 @@ Gets a list of calendars for the specified entity type, similar to `EKEventStore
 
 Returns an array of `Calendar` objects.
 
+### `getCalendar(identifier: string)`
+
+Gets a calendar with the specified identifier, similar to `EKEventStore.calendar(withIdentifier:)` in EventKit.
+
+- `identifier`: The unique identifier of the calendar to retrieve.
+
+Returns a `Calendar` object if found, or `null` if no calendar with the specified identifier exists.
+
 ## Simplified API
 
 The simplified API is available by destructuring methods from the `simple` object:
 
 ```javascript
 // JavaScript
-const { requestCalendarAccess, getCalendars, getReminderLists, requestRemindersAccess } = require('eventkit-node').simple;
+const { requestCalendarAccess, getCalendars, getReminderLists, requestRemindersAccess, getCalendar } = require('eventkit-node').simple;
 
 // TypeScript
 import { simple } from 'eventkit-node';
-const { requestCalendarAccess, getCalendars, getReminderLists, requestRemindersAccess } = simple;
+const { requestCalendarAccess, getCalendars, getReminderLists, requestRemindersAccess, getCalendar } = simple;
 ```
 
 ### `getCalendars()`
@@ -60,6 +68,14 @@ Returns an array of `Calendar` objects representing event calendars.
 Gets a list of reminder lists.
 
 Returns an array of `ReminderList` objects representing reminder lists.
+
+### `getCalendar(identifier: string)`
+
+Gets a calendar with the specified identifier.
+
+- `identifier`: The unique identifier of the calendar to retrieve.
+
+Returns a `Calendar` object if found, or `null` if no calendar with the specified identifier exists.
 
 ### `requestCalendarAccess()`
 
