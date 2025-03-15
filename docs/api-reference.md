@@ -28,103 +28,151 @@ Similar to `EKEventStore.requestFullAccessToReminders()` in EventKit.
 - On macOS 14.0 and later: Uses the `requestFullAccessToReminders` method from EventKit
 - On macOS 10.15 to 13.x: Falls back to the `requestAccess(to: .reminder)` method
 
-### `getCalendars(entityType?: 'event' | 'reminder')`
+### `getCalendars(entityType?: EntityType)`
 
-Gets a list of calendars for the specified entity type, similar to `EKEventStore.calendars(for:)` in EventKit.
+Gets all calendars for the specified entity type. If no entity type is provided, defaults to 'event'.
+Similar to `EKEventStore.calendars(for:)` in EventKit.
 
-- `entityType`: Optional. The type of entity to get calendars for. Can be either 'event' (default) or 'reminder'.
-
-Returns an array of `Calendar` objects.
-
-### `getCalendar(identifier: string)`
-
-Gets a calendar with the specified identifier, similar to `EKEventStore.calendar(withIdentifier:)` in EventKit.
-
-- `identifier`: The unique identifier of the calendar to retrieve.
-
-Returns a `Calendar` object if found, or `null` if no calendar with the specified identifier exists.
-
-## Simplified API
-
-The simplified API is available by destructuring methods from the `simple` object:
-
-```javascript
-// JavaScript
-const { requestCalendarAccess, getCalendars, getReminderLists, requestRemindersAccess, getCalendar } = require('eventkit-node').simple;
-
-// TypeScript
-import { simple } from 'eventkit-node';
-const { requestCalendarAccess, getCalendars, getReminderLists, requestRemindersAccess, getCalendar } = simple;
-```
-
-### `getCalendars()`
-
-Gets a list of event calendars.
-
-Returns an array of `Calendar` objects representing event calendars.
-
-### `getReminderLists()`
-
-Gets a list of reminder lists.
-
-Returns an array of `ReminderList` objects representing reminder lists.
+- `entityType`: Optional. The entity type to get calendars for. Can be 'event' or 'reminder'. Defaults to 'event'.
+- Returns: An array of Calendar objects.
 
 ### `getCalendar(identifier: string)`
 
 Gets a calendar with the specified identifier.
+Similar to `EKEventStore.calendar(withIdentifier:)` in EventKit.
 
 - `identifier`: The unique identifier of the calendar to retrieve.
+- Returns: The calendar with the specified identifier, or null if not found.
 
-Returns a `Calendar` object if found, or `null` if no calendar with the specified identifier exists.
+### `saveCalendar(calendarOrData: Calendar | CalendarData, commit?: boolean)`
+
+Saves a calendar (creates a new one or updates an existing one).
+Similar to `EKEventStore.saveCalendar(_:commit:)` in EventKit.
+
+- `calendarOrData`: The calendar object or calendar data to save.
+  - Use `Calendar` for updating existing calendars
+  - Use `CalendarData` for creating new calendars
+- `commit`: Optional. Whether to commit the changes immediately. Defaults to true.
+- Returns: A promise that resolves to the calendar identifier if successful.
+
+## Simplified API
+
+The simplified API is available through the `simple` export:
+
+```javascript
+const { requestCalendarAccess, getCalendars, getReminderLists } = require('eventkit-node').simple;
+// or
+import { simple } from 'eventkit-node';
+const { requestCalendarAccess, getCalendars, getReminderLists } = simple;
+```
 
 ### `requestCalendarAccess()`
 
-Requests access to calendar events using a more intuitive function name.
-Internally calls `requestFullAccessToEvents()`.
-
-Returns a promise that resolves to true if access was granted, false otherwise.
+Requests access to calendar events and returns a promise that resolves to a boolean indicating whether access was granted.
+This is a simplified version of `requestFullAccessToEvents()`.
 
 ### `requestRemindersAccess()`
 
-Requests access to reminders using a more intuitive function name.
-Internally calls `requestFullAccessToReminders()`.
+Requests access to reminders and returns a promise that resolves to a boolean indicating whether access was granted.
+This is a simplified version of `requestFullAccessToReminders()`.
 
-Returns a promise that resolves to true if access was granted, false otherwise.
+### `getCalendars()`
+
+Gets all event calendars.
+This is a simplified version of `getCalendars('event')`.
+
+- Returns: An array of Calendar objects representing event calendars.
+
+### `getReminderLists()`
+
+Gets all reminder lists.
+This is a simplified version of `getCalendars('reminder')`.
+
+- Returns: An array of Calendar objects representing reminder lists.
+
+### `getCalendar(identifier: string)`
+
+Gets a calendar with the specified identifier.
+This is the same as the EventKit-like API's `getCalendar()` method.
+
+- `identifier`: The unique identifier of the calendar to retrieve.
+- Returns: The calendar with the specified identifier, or null if not found.
+
+### `createCalendar(calendarData: CalendarData)`
+
+Creates a new calendar.
+This is a simplified version of `saveCalendar(calendarData, true)`.
+
+- `calendarData`: The calendar data to create.
+- Returns: A promise that resolves to the calendar identifier if successful.
+
+### `updateCalendar(calendar: Calendar)`
+
+Updates an existing calendar.
+This is a simplified version of `saveCalendar(calendar, true)`.
+
+- `calendar`: The calendar object to update.
+- Returns: A promise that resolves to the calendar identifier if successful.
 
 ## Types
 
-These types are available as named exports:
+### `EntityType`
 
 ```typescript
-import { Calendar, ReminderList, EntityType, CalendarType, ColorSpace } from 'eventkit-node';
+type EntityType = 'event' | 'reminder';
+```
+
+### `CalendarType`
+
+```typescript
+type CalendarType = 'local' | 'calDAV' | 'exchange' | 'subscription' | 'birthday' | 'unknown';
+```
+
+### `ColorSpace`
+
+```typescript
+type ColorSpace = 'rgb' | 'monochrome' | 'cmyk' | 'lab' | 'deviceN' | 'indexed' | 'pattern' | 'unknown';
+```
+
+### `CalendarColor`
+
+```typescript
+interface CalendarColor {
+  hex: string;        // Hex color code with alpha (#RRGGBBAA)
+  components: string; // Raw color components as comma-separated values
+  space: ColorSpace;  // Color space of the original color
+}
 ```
 
 ### `Calendar`
 
-Represents an EKCalendar with the following properties:
-
-- `id`: Unique identifier for the calendar
-- `title`: Display name of the calendar
-- `allowsContentModifications`: Whether the calendar allows content modifications
-- `type`: Type of the calendar ('local', 'calDAV', 'exchange', 'subscription', 'birthday', or 'unknown')
-- `color`: Color information with multiple representations:
-  - `hex`: Hex color code with alpha (#RRGGBBAA)
-  - `components`: Raw color components as comma-separated values
-  - `space`: Color space of the original color
-- `source`: Source of the calendar (e.g., iCloud, Google)
+```typescript
+interface Calendar {
+  id: string;                      // Unique identifier for the calendar
+  title: string;                   // Display name of the calendar
+  allowsContentModifications: boolean; // Whether the calendar allows content modifications
+  type: CalendarType;              // Type of the calendar (local, calDAV, etc.)
+  color: CalendarColor;            // Color of the calendar
+  source: string;                  // Source of the calendar (e.g., iCloud, Google)
+}
+```
 
 ### `ReminderList`
 
-Type alias for `Calendar` representing a calendar that contains reminders.
+```typescript
+type ReminderList = Calendar;
+```
 
-### `EntityType`
+### `CalendarData`
 
-Union type of 'event' | 'reminder' representing the type of entity.
-
-### `CalendarType`
-
-Union type representing the type of calendar: 'local' | 'calDAV' | 'exchange', 'subscription', 'birthday', or 'unknown'.
-
-### `ColorSpace`
-
-Union type representing the color space: 'rgb' | 'monochrome' | 'cmyk' | 'lab' | 'deviceN' | 'indexed' | 'pattern' | 'unknown'. 
+```typescript
+interface CalendarData {
+  id?: string;                // Unique identifier (omit for new calendars)
+  title: string;              // Display name of the calendar
+  entityType?: EntityType;    // Entity type ('event' or 'reminder')
+  sourceId?: string;          // Source identifier (optional)
+  color?: {
+    hex: string;              // Hex color code (#RRGGBBAA or #RRGGBB)
+  };
+}
+``` 

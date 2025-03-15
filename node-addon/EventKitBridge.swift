@@ -116,6 +116,96 @@ import Foundation
         }
         return Calendar(from: ekCalendar)
     }
+    
+    @objc public func saveCalendar(calendarData: NSDictionary, commit: Bool, completion: @escaping (Bool, String?) -> Void) {
+        // Get the calendar ID if it exists (for updating an existing calendar)
+        let calendarId = calendarData["id"] as? String
+        
+        // Get the entity type (default to event if not specified)
+        let entityTypeString = (calendarData["entityType"] as? String)?.lowercased() ?? "event"
+        let entityType: EKEntityType = entityTypeString == "reminder" ? .reminder : .event
+        
+        // Create a new calendar or get an existing one
+        let calendar: EKCalendar
+        if let calendarId = calendarId, let existingCalendar = eventStore.calendar(withIdentifier: calendarId) {
+            // Update existing calendar
+            calendar = existingCalendar
+        } else {
+            // Create a new calendar
+            calendar = EKCalendar(for: entityType, eventStore: eventStore)
+            
+            // For new calendars, we need to set a source
+            if let sourceId = calendarData["sourceId"] as? String, 
+               let source = eventStore.source(withIdentifier: sourceId) {
+                calendar.source = source
+            } else {
+                // Use the default source if no source ID is provided
+                if let defaultSource = eventStore.defaultCalendarForNewEvents?.source {
+                    calendar.source = defaultSource
+                } else if let firstSource = eventStore.sources.first(where: { $0.sourceType == .local }) {
+                    calendar.source = firstSource
+                } else if let firstSource = eventStore.sources.first {
+                    calendar.source = firstSource
+                } else {
+                    // No sources available
+                    completion(false, "No calendar sources available")
+                    return
+                }
+            }
+        }
+        
+        // Update calendar properties
+        if let title = calendarData["title"] as? String {
+            calendar.title = title
+        }
+        
+        // Update color if provided
+        if let colorHex = calendarData["colorHex"] as? String, colorHex.hasPrefix("#") {
+            var hexString = colorHex.dropFirst() // Remove the # prefix
+            
+            // Parse the hex color
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 1.0
+            
+            if hexString.count == 8 {
+                // #RRGGBBAA format
+                let scanner = Scanner(string: String(hexString))
+                var hexValue: UInt64 = 0
+                
+                if scanner.scanHexInt64(&hexValue) {
+                    r = CGFloat((hexValue & 0xFF000000) >> 24) / 255.0
+                    g = CGFloat((hexValue & 0x00FF0000) >> 16) / 255.0
+                    b = CGFloat((hexValue & 0x0000FF00) >> 8) / 255.0
+                    a = CGFloat(hexValue & 0x000000FF) / 255.0
+                }
+            } else if hexString.count == 6 {
+                // #RRGGBB format
+                let scanner = Scanner(string: String(hexString))
+                var hexValue: UInt64 = 0
+                
+                if scanner.scanHexInt64(&hexValue) {
+                    r = CGFloat((hexValue & 0xFF0000) >> 16) / 255.0
+                    g = CGFloat((hexValue & 0x00FF00) >> 8) / 255.0
+                    b = CGFloat(hexValue & 0x0000FF) / 255.0
+                }
+            }
+            
+            // Create a CGColor from the components
+            if let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) {
+                let components: [CGFloat] = [r, g, b, a]
+                if let cgColor = CGColor(colorSpace: colorSpace, components: components) {
+                    calendar.cgColor = cgColor
+                }
+            }
+        }
+        
+        // Save the calendar
+        do {
+            try eventStore.saveCalendar(calendar, commit: commit)
+            completion(true, calendar.calendarIdentifier)
+        } catch {
+            completion(false, error.localizedDescription)
+        }
+    }
 
     @objc public func getEvents(startDate: Date, endDate: Date) -> [String] {
         let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)

@@ -52,6 +52,25 @@ export interface Calendar {
 export type ReminderList = Calendar;
 
 /**
+ * Data for creating a new calendar
+ */
+export interface CalendarData {
+  /** Unique identifier for the calendar (omit for new calendars) */
+  id?: string;
+  /** Display name of the calendar */
+  title: string;
+  /** Entity type for the calendar ('event' or 'reminder') */
+  entityType?: EntityType;
+  /** Source identifier for the calendar (optional, system will use default if not provided) */
+  sourceId?: string;
+  /** Color for the calendar */
+  color?: {
+    /** Hex color code with alpha (#RRGGBBAA) or without alpha (#RRGGBB) */
+    hex: string;
+  };
+}
+
+/**
  * Request full access to calendar events
  * Similar to EKEventStore.requestFullAccessToEvents in EventKit
  * @returns A promise that resolves to true if access was granted, false otherwise
@@ -80,6 +99,17 @@ export function getCalendars(entityType?: EntityType): Calendar[];
  * @returns The calendar with the specified identifier, or null if not found
  */
 export function getCalendar(identifier: string): Calendar | null;
+
+/**
+ * Save a calendar (create new or update existing)
+ * Similar to EKEventStore.saveCalendar(_:commit:) in EventKit
+ * @param calendarOrData - The calendar object or calendar data to save
+ *                         Use Calendar for updating existing calendars
+ *                         Use CalendarData for creating new calendars
+ * @param commit - Whether to commit the changes immediately (default: true)
+ * @returns A promise that resolves to the calendar identifier if successful
+ */
+export function saveCalendar(calendarOrData: Calendar | CalendarData, commit?: boolean): Promise<string>;
 
 /**
  * Simplified API interface
@@ -115,6 +145,20 @@ export interface SimpleAPI {
    * @returns A promise that resolves to true if access was granted, false otherwise
    */
   requestRemindersAccess(): Promise<boolean>;
+  
+  /**
+   * Create a new calendar
+   * @param calendarData - The calendar data to create
+   * @returns A promise that resolves to the calendar identifier if successful
+   */
+  createCalendar(calendarData: CalendarData): Promise<string>;
+  
+  /**
+   * Update an existing calendar
+   * @param calendar - The calendar object to update
+   * @returns A promise that resolves to the calendar identifier if successful
+   */
+  updateCalendar(calendar: Calendar): Promise<string>;
 }
 
 /**
@@ -131,6 +175,7 @@ export interface EventKit {
   requestFullAccessToReminders(): Promise<boolean>;
   getCalendars(entityType?: EntityType): Calendar[];
   getCalendar(identifier: string): Calendar | null;
+  saveCalendar(calendarOrData: Calendar | CalendarData, commit?: boolean): Promise<string>;
 }
 
 /**

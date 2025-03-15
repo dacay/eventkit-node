@@ -16,11 +16,9 @@ npm install eventkit-node
 
 ## Quick Start
 
-### JavaScript (CommonJS)
-
 ```javascript
-// Destructure methods directly from the simple object
-const { requestCalendarAccess, getCalendars, getCalendar } = require('eventkit-node').simple;
+// Using the simplified API
+const { requestCalendarAccess, getCalendars, createCalendar } = require('eventkit-node').simple;
 
 async function example() {
   // Request calendar access
@@ -31,37 +29,16 @@ async function example() {
     const calendars = getCalendars();
     console.log('Calendars:', calendars);
     
-    // Get a specific calendar by ID
-    if (calendars.length > 0) {
-      const calendarId = calendars[0].id;
-      const calendar = getCalendar(calendarId);
-      console.log('Specific calendar:', calendar);
-    }
-  }
-}
-
-example();
-```
-
-### TypeScript
-
-```typescript
-// Import the module and destructure methods from simple
-import { simple, Calendar } from 'eventkit-node';
-const { requestCalendarAccess, getCalendars, getCalendar } = simple;
-
-async function example() {
-  const granted = await requestCalendarAccess();
-  
-  if (granted) {
-    const calendars: Calendar[] = getCalendars();
-    console.log('Calendars:', calendars);
-    
-    // Get a specific calendar by ID
-    if (calendars.length > 0) {
-      const calendarId = calendars[0].id;
-      const calendar: Calendar | null = getCalendar(calendarId);
-      console.log('Specific calendar:', calendar);
+    // Create a new calendar
+    try {
+      const newCalendarId = await createCalendar({
+        title: 'My New Calendar',
+        entityType: 'event',
+        color: { hex: '#FF0000FF' }
+      });
+      console.log('Created new calendar with ID:', newCalendarId);
+    } catch (error) {
+      console.error('Failed to create calendar:', error);
     }
   }
 }
@@ -99,6 +76,8 @@ This library offers two API styles:
 | `getCalendars('event')` | `getCalendars()` | Get event calendars |
 | `getCalendars('reminder')` | `getReminderLists()` | Get reminder lists |
 | `getCalendar(id)` | `getCalendar(id)` | Get a specific calendar by ID |
+| `saveCalendar(calendarOrData, commit)` | `createCalendar(calendarData)` | Create a new calendar |
+| `saveCalendar(calendarOrData, commit)` | `updateCalendar(calendar)` | Update an existing calendar |
 
 ## Documentation
 

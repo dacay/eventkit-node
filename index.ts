@@ -51,6 +51,25 @@ export interface Calendar {
  */
 export type ReminderList = Calendar;
 
+/**
+ * Data for creating a new calendar
+ */
+export interface CalendarData {
+  /** Unique identifier for the calendar (omit for new calendars) */
+  id?: string;
+  /** Display name of the calendar */
+  title: string;
+  /** Entity type for the calendar ('event' or 'reminder') */
+  entityType?: EntityType;
+  /** Source identifier for the calendar (optional, system will use default if not provided) */
+  sourceId?: string;
+  /** Color for the calendar */
+  color?: {
+    /** Hex color code with alpha (#RRGGBBAA) or without alpha (#RRGGBB) */
+    hex: string;
+  };
+}
+
 // Import the native module using a path that will work when imported from dist
 const path = require('path');
 const nativeModule = require(path.join(__dirname, '../build/Release/eventkit'));
@@ -102,12 +121,40 @@ export function getCalendar(identifier: string): Calendar | null {
   return nativeModule.getCalendar(identifier);
 }
 
+/**
+ * Save a calendar (create new or update existing)
+ * Similar to EKEventStore.saveCalendar(_:commit:) in EventKit
+ * @param calendarOrData - The calendar object or calendar data to save
+ *                         Use Calendar for updating existing calendars
+ *                         Use CalendarData for creating new calendars
+ * @param commit - Whether to commit the changes immediately (default: true)
+ * @returns A promise that resolves to the calendar identifier if successful
+ */
+export function saveCalendar(calendarOrData: Calendar | CalendarData, commit: boolean = true): Promise<string> {
+  // If we're passed a Calendar object, convert it to CalendarData format
+  // that our native module expects
+  if ('allowsContentModifications' in calendarOrData) {
+    // It's a Calendar object, extract the relevant properties
+    const calendar = calendarOrData as Calendar;
+    const calendarData: CalendarData = {
+      id: calendar.id,
+      title: calendar.title,
+      color: { hex: calendar.color.hex }
+    };
+    return nativeModule.saveCalendar(calendarData, commit);
+  } else {
+    // It's already in CalendarData format
+    return nativeModule.saveCalendar(calendarOrData, commit);
+  }
+}
+
 // Create a default export object for ES modules compatibility
 const eventkit = {
   requestFullAccessToEvents,
   requestFullAccessToReminders,
   getCalendars,
-  getCalendar
+  getCalendar,
+  saveCalendar
 };
 
 // Export as default for ES modules
@@ -154,5 +201,25 @@ export const simple = {
    * Request access to reminders
    * @returns A promise that resolves to true if access was granted, false otherwise
    */
-  requestRemindersAccess
+  requestRemindersAccess,
+  
+  /**
+   * Create a new calendar
+   * @param calendarData - The calendar data to create
+   * @returns A promise that resolves to the calendar identifier if successful
+   */
+  createCalendar(calendarData: CalendarData): Promise<string> {
+    // Always commit immediately for the simple API
+    return eventkit.saveCalendar(calendarData, true);
+  },
+  
+  /**
+   * Update an existing calendar
+   * @param calendar - The calendar object to update
+   * @returns A promise that resolves to the calendar identifier if successful
+   */
+  updateCalendar(calendar: Calendar): Promise<string> {
+    // Always commit immediately for the simple API
+    return eventkit.saveCalendar(calendar, true);
+  }
 }; 

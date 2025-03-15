@@ -172,6 +172,55 @@ private:
     bool granted_;
 };
 
+// Class to handle the save calendar operation
+class SaveCalendarWorker : public Napi::AsyncWorker {
+public:
+    SaveCalendarWorker(const Napi::Promise::Deferred& deferred)
+        : Napi::AsyncWorker(Napi::Function::New(deferred.Env(), [](const Napi::CallbackInfo& info) { return info.Env().Undefined(); })),
+          deferred_(deferred), success_(false), calendarId_("") {}
+    
+    // Execute is called on a worker thread
+    void Execute() override {
+        // This is intentionally left empty as we're not doing any work here
+        // The actual work is done in the Swift code
+    }
+    
+    // OnOK is called on the main thread when Execute completes
+    void OnOK() override {
+        Napi::HandleScope scope(Env());
+        
+        if (success_) {
+            // If successful, return the calendar ID
+            deferred_.Resolve(Napi::String::New(Env(), calendarId_));
+        } else {
+            // If failed, reject with the error message
+            deferred_.Reject(Napi::Error::New(Env(), errorMessage_).Value());
+        }
+    }
+    
+    // OnError is called on the main thread if Execute throws
+    void OnError(const Napi::Error& error) override {
+        Napi::HandleScope scope(Env());
+        deferred_.Reject(error.Value());
+    }
+    
+    // Method to set the result values
+    void SetResult(bool success, const std::string& calendarIdOrError) {
+        success_ = success;
+        if (success) {
+            calendarId_ = calendarIdOrError;
+        } else {
+            errorMessage_ = calendarIdOrError;
+        }
+    }
+    
+private:
+    Napi::Promise::Deferred deferred_;
+    bool success_;
+    std::string calendarId_;
+    std::string errorMessage_;
+};
+
 // RequestCalendarAccess function
 Napi::Value RequestCalendarAccess(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -218,12 +267,86 @@ Napi::Value RequestRemindersAccess(const Napi::CallbackInfo& info) {
     return deferred.Promise();
 }
 
+// SaveCalendar function
+Napi::Value SaveCalendar(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Check if calendar data parameter is provided
+    if (info.Length() < 1 || !info[0].IsObject()) {
+        Napi::Error::New(env, "Calendar data is required and must be an object.")
+            .ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Get the calendar data parameter
+    Napi::Object calendarData = info[0].As<Napi::Object>();
+    
+    // Get the commit parameter, default to true
+    bool commit = true;
+    if (info.Length() > 1 && info[1].IsBoolean()) {
+        commit = info[1].As<Napi::Boolean>().Value();
+    }
+    
+    // Create an NSDictionary from the calendar data
+    NSMutableDictionary* calendarDict = [NSMutableDictionary dictionary];
+    
+    // Add all properties from the JS object to the dictionary
+    if (calendarData.Has("id") && calendarData.Get("id").IsString()) {
+        std::string id = calendarData.Get("id").As<Napi::String>().Utf8Value();
+        calendarDict[@"id"] = [NSString stringWithUTF8String:id.c_str()];
+    }
+    
+    if (calendarData.Has("title") && calendarData.Get("title").IsString()) {
+        std::string title = calendarData.Get("title").As<Napi::String>().Utf8Value();
+        calendarDict[@"title"] = [NSString stringWithUTF8String:title.c_str()];
+    }
+    
+    if (calendarData.Has("entityType") && calendarData.Get("entityType").IsString()) {
+        std::string entityType = calendarData.Get("entityType").As<Napi::String>().Utf8Value();
+        calendarDict[@"entityType"] = [NSString stringWithUTF8String:entityType.c_str()];
+    }
+    
+    if (calendarData.Has("sourceId") && calendarData.Get("sourceId").IsString()) {
+        std::string sourceId = calendarData.Get("sourceId").As<Napi::String>().Utf8Value();
+        calendarDict[@"sourceId"] = [NSString stringWithUTF8String:sourceId.c_str()];
+    }
+    
+    // Handle color
+    if (calendarData.Has("color") && calendarData.Get("color").IsObject()) {
+        Napi::Object colorObject = calendarData.Get("color").As<Napi::Object>();
+        if (colorObject.Has("hex") && colorObject.Get("hex").IsString()) {
+            std::string colorHex = colorObject.Get("hex").As<Napi::String>().Utf8Value();
+            calendarDict[@"colorHex"] = [NSString stringWithUTF8String:colorHex.c_str()];
+        }
+    }
+    
+    // Create a promise
+    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
+    
+    // Create the worker
+    SaveCalendarWorker* worker = new SaveCalendarWorker(deferred);
+    
+    // Create the EventKitBridge
+    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    
+    // Save the calendar
+    [bridge saveCalendarWithCalendarData:calendarDict commit:commit completion:^(BOOL success, NSString * _Nullable calendarIdOrError) {
+        std::string resultString = calendarIdOrError ? [calendarIdOrError UTF8String] : "";
+        worker->SetResult(success, resultString);
+        worker->Queue();
+    }];
+    
+    // Return the promise
+    return deferred.Promise();
+}
+
 // Initialize the module
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getCalendars", Napi::Function::New(env, GetCalendars));
     exports.Set("getCalendar", Napi::Function::New(env, GetCalendar));
     exports.Set("requestCalendarAccess", Napi::Function::New(env, RequestCalendarAccess));
     exports.Set("requestRemindersAccess", Napi::Function::New(env, RequestRemindersAccess));
+    exports.Set("saveCalendar", Napi::Function::New(env, SaveCalendar));
     return exports;
 }
 
