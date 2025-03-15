@@ -47,6 +47,7 @@ import Foundation
         @objc public let colorComponents: String
         @objc public let colorSpace: String
         @objc public let source: String
+        @objc public let allowedEntityTypes: [String]
         
         init(from ekCalendar: EKCalendar) {
             self.id = ekCalendar.calendarIdentifier
@@ -57,6 +58,16 @@ import Foundation
                         ekCalendar.type == .exchange ? "exchange" : 
                         ekCalendar.type == .subscription ? "subscription" : 
                         ekCalendar.type == .birthday ? "birthday" : "unknown"
+            
+            // Determine allowed entity types
+            var entityTypes: [String] = []
+            if ekCalendar.allowedEntityTypes.contains(.event) {
+                entityTypes.append("event")
+            }
+            if ekCalendar.allowedEntityTypes.contains(.reminder) {
+                entityTypes.append("reminder")
+            }
+            self.allowedEntityTypes = entityTypes
             
             // Store color space information
             if let colorSpace = ekCalendar.cgColor.colorSpace {
@@ -104,6 +115,38 @@ import Foundation
         }
     }
 
+    // Source object for JSON serialization
+    @objc public class Source: NSObject {
+        @objc public let id: String
+        @objc public let title: String
+        @objc public let sourceType: String
+        
+        init(ekSource: EKSource) {
+            self.id = ekSource.sourceIdentifier
+            self.title = ekSource.title
+            
+            // Convert EKSourceType to string
+            switch ekSource.sourceType {
+            case .local:
+                self.sourceType = "local"
+            case .exchange:
+                self.sourceType = "exchange"
+            case .calDAV:
+                self.sourceType = "calDAV"
+            case .mobileMe:
+                self.sourceType = "mobileMe"
+            case .subscribed:
+                self.sourceType = "subscribed"
+            case .birthdays:
+                self.sourceType = "birthdays"
+            @unknown default:
+                self.sourceType = "unknown"
+            }
+            
+            super.init()
+        }
+    }
+
     @objc public func getCalendars(entityTypeString: String = "event") -> [Calendar] {
         let entityType: EKEntityType = entityTypeString.lowercased() == "reminder" ? .reminder : .event
         let ekCalendars = eventStore.calendars(for: entityType)
@@ -130,6 +173,12 @@ import Foundation
         if let calendarId = calendarId, let existingCalendar = eventStore.calendar(withIdentifier: calendarId) {
             // Update existing calendar
             calendar = existingCalendar
+            
+            // Check if the calendar supports the specified entity type
+            if !existingCalendar.allowedEntityTypes.contains(entityType == .event ? .event : .reminder) {
+                completion(false, "This calendar does not support the specified entity type")
+                return
+            }
         } else {
             // Create a new calendar
             calendar = EKCalendar(for: entityType, eventStore: eventStore)
@@ -161,7 +210,7 @@ import Foundation
         
         // Update color if provided
         if let colorHex = calendarData["colorHex"] as? String, colorHex.hasPrefix("#") {
-            var hexString = colorHex.dropFirst() // Remove the # prefix
+            let hexString = colorHex.dropFirst() // Remove the # prefix
             
             // Parse the hex color
             var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 1.0
@@ -211,5 +260,39 @@ import Foundation
         let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
         let events = eventStore.events(matching: predicate)
         return events.map { $0.title ?? "Untitled Event" }
+    }
+
+    @objc public func getSources() -> NSArray {
+        let sources = eventStore.sources
+        let result = NSMutableArray()
+        
+        for source in sources {
+            result.add(Source(ekSource: source))
+        }
+        
+        return result
+    }
+    
+    @objc public func getDelegateSources() -> NSArray {
+        if #available(macOS 12.0, *) {
+            let sources = eventStore.delegateSources
+            let result = NSMutableArray()
+            
+            for source in sources {
+                result.add(Source(ekSource: source))
+            }
+            
+            return result
+        } else {
+            // For older macOS versions, return an empty array
+            return NSArray()
+        }
+    }
+    
+    @objc public func getSource(sourceId: String) -> Source? {
+        if let source = eventStore.source(withIdentifier: sourceId) {
+            return Source(ekSource: source)
+        }
+        return nil
     }
 } 

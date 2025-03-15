@@ -9,6 +9,11 @@ export type EntityType = 'event' | 'reminder';
 export type CalendarType = 'local' | 'calDAV' | 'exchange' | 'subscription' | 'birthday' | 'unknown';
 
 /**
+ * Source type
+ */
+export type SourceType = 'local' | 'exchange' | 'calDAV' | 'mobileme' | 'subscribed' | 'birthdays' | 'unknown';
+
+/**
  * Color space
  */
 export type ColorSpace = 'rgb' | 'monochrome' | 'cmyk' | 'lab' | 'deviceN' | 'indexed' | 'pattern' | 'unknown';
@@ -23,6 +28,19 @@ export interface CalendarColor {
   components: string;
   /** Color space of the original color */
   space: ColorSpace;
+}
+
+/**
+ * Source object representing an EKSource
+ * @see https://developer.apple.com/documentation/eventkit/eksource
+ */
+export interface Source {
+  /** Unique identifier for the source */
+  id: string;
+  /** Display name of the source */
+  title: string;
+  /** Type of the source (local, calDAV, etc.) */
+  sourceType: SourceType;
 }
 
 /**
@@ -42,27 +60,22 @@ export interface Calendar {
   color: CalendarColor;
   /** Source of the calendar (e.g., iCloud, Google) */
   source: string;
+  /** Entity types this calendar supports (events, reminders, or both) */
+  allowedEntityTypes: EntityType[];
 }
 
 /**
- * Type alias for a reminder list
- * Represents a calendar that contains reminders
- * @see https://developer.apple.com/documentation/eventkit/ekcalendar
- */
-export type ReminderList = Calendar;
-
-/**
- * Data for creating a new calendar
+ * Data for creating or updating a calendar
  */
 export interface CalendarData {
   /** Unique identifier for the calendar (omit for new calendars) */
   id?: string;
   /** Display name of the calendar */
   title: string;
-  /** Entity type for the calendar ('event' or 'reminder') */
-  entityType?: EntityType;
   /** Source identifier for the calendar (optional, system will use default if not provided) */
   sourceId?: string;
+  /** Entity type for the calendar (event or reminder) */
+  entityType: EntityType;
   /** Color for the calendar */
   color?: {
     /** Hex color code with alpha (#RRGGBBAA) or without alpha (#RRGGBB) */
@@ -71,115 +84,78 @@ export interface CalendarData {
 }
 
 /**
- * Request full access to calendar events
- * Similar to EKEventStore.requestFullAccessToEvents in EventKit
- * @returns A promise that resolves to true if access was granted, false otherwise
- */
-export function requestFullAccessToEvents(): Promise<boolean>;
-
-/**
- * Request full access to reminders
- * Similar to EKEventStore.requestFullAccessToReminders in EventKit
- * @returns A promise that resolves to true if access was granted, false otherwise
- */
-export function requestFullAccessToReminders(): Promise<boolean>;
-
-/**
- * Get calendars for the specified entity type
- * Similar to EKEventStore.calendars(for:) in EventKit
- * @param entityType - The entity type ('event' or 'reminder')
+ * Get calendars for a specific entity type
+ * @param entityType - The entity type to get calendars for (event or reminder)
  * @returns An array of Calendar objects
  */
 export function getCalendars(entityType?: EntityType): Calendar[];
 
 /**
- * Get a calendar with the specified identifier
- * Similar to EKEventStore.calendar(withIdentifier:) in EventKit
+ * Get a calendar by its identifier
  * @param identifier - The unique identifier of the calendar to retrieve
  * @returns The calendar with the specified identifier, or null if not found
  */
 export function getCalendar(identifier: string): Calendar | null;
 
 /**
+ * Request full access to calendar events
+ * @returns A promise that resolves to true if access was granted, false otherwise
+ * @note On macOS 14.0+, uses requestFullAccessToEvents. On older versions, falls back to requestAccess(to: .event)
+ */
+export function requestFullAccessToEvents(): Promise<boolean>;
+
+/**
+ * Request full access to reminders
+ * @returns A promise that resolves to true if access was granted, false otherwise
+ * @note On macOS 14.0+, uses requestFullAccessToReminders. On older versions, falls back to requestAccess(to: .reminder)
+ */
+export function requestFullAccessToReminders(): Promise<boolean>;
+
+/**
  * Save a calendar (create new or update existing)
- * Similar to EKEventStore.saveCalendar(_:commit:) in EventKit
- * @param calendarOrData - The calendar object or calendar data to save
- *                         Use Calendar for updating existing calendars
- *                         Use CalendarData for creating new calendars
+ * @param calendarData - The calendar data to save
  * @param commit - Whether to commit the changes immediately (default: true)
  * @returns A promise that resolves to the calendar identifier if successful
+ * @throws Error if the calendar data is invalid or the operation fails
+ * 
+ * @example
+ * // Create a new calendar
+ * const newCalendarId = await saveCalendar({
+ *   title: 'My Calendar',
+ *   entityType: 'event',
+ *   color: { hex: '#FF0000FF' }
+ * });
+ * 
+ * @example
+ * // Update an existing calendar
+ * const calendar = getCalendar('calendar-id');
+ * if (calendar) {
+ *   const updatedCalendarId = await saveCalendar({
+ *     id: calendar.id,
+ *     title: 'Updated Title',
+ *     entityType: 'event',
+ *     color: { hex: calendar.color.hex }
+ *   });
+ * }
  */
-export function saveCalendar(calendarOrData: Calendar | CalendarData, commit?: boolean): Promise<string>;
+export function saveCalendar(calendarData: CalendarData, commit?: boolean): Promise<string>;
 
 /**
- * Simplified API interface
+ * Get all sources
+ * @returns An array of Source objects
  */
-export interface SimpleAPI {
-  /**
-   * Get event calendars
-   * @returns An array of Calendar objects representing event calendars
-   */
-  getCalendars(): Calendar[];
-  
-  /**
-   * Get reminder lists
-   * @returns An array of Calendar objects representing reminder lists
-   */
-  getReminderLists(): ReminderList[];
-  
-  /**
-   * Get a calendar by its identifier
-   * @param identifier - The unique identifier of the calendar to retrieve
-   * @returns The calendar with the specified identifier, or null if not found
-   */
-  getCalendar(identifier: string): Calendar | null;
-  
-  /**
-   * Request access to calendar events
-   * @returns A promise that resolves to true if access was granted, false otherwise
-   */
-  requestCalendarAccess(): Promise<boolean>;
-  
-  /**
-   * Request access to reminders
-   * @returns A promise that resolves to true if access was granted, false otherwise
-   */
-  requestRemindersAccess(): Promise<boolean>;
-  
-  /**
-   * Create a new calendar
-   * @param calendarData - The calendar data to create
-   * @returns A promise that resolves to the calendar identifier if successful
-   */
-  createCalendar(calendarData: CalendarData): Promise<string>;
-  
-  /**
-   * Update an existing calendar
-   * @param calendar - The calendar object to update
-   * @returns A promise that resolves to the calendar identifier if successful
-   */
-  updateCalendar(calendar: Calendar): Promise<string>;
-}
+export function getSources(): Source[];
 
 /**
- * Simplified API module
- * Provides more intuitive function names for common operations
+ * Get delegate sources
+ * @returns An array of Source objects
+ * @note This method is only available on macOS 12.0 and later. On older versions, it returns an empty array.
  */
-export const simple: SimpleAPI;
+export function getDelegateSources(): Source[];
 
 /**
- * EventKit interface for the default export
+ * Get a source with the specified identifier
+ * @param sourceId - The unique identifier of the source to retrieve
+ * @returns The source with the specified identifier, or null if not found
  */
-export interface EventKit {
-  requestFullAccessToEvents(): Promise<boolean>;
-  requestFullAccessToReminders(): Promise<boolean>;
-  getCalendars(entityType?: EntityType): Calendar[];
-  getCalendar(identifier: string): Calendar | null;
-  saveCalendar(calendarOrData: Calendar | CalendarData, commit?: boolean): Promise<string>;
-}
-
-/**
- * Default export for ES modules
- */
-declare const eventkit: EventKit;
-export default eventkit; 
+export function getSource(sourceId: string): Source | null; 

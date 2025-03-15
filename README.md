@@ -17,28 +17,47 @@ npm install eventkit-node
 ## Quick Start
 
 ```javascript
-// Using the simplified API
-const { requestCalendarAccess, getCalendars, createCalendar } = require('eventkit-node').simple;
+const { requestFullAccessToEvents, getCalendars, saveCalendar } = require('eventkit-node');
 
 async function example() {
   // Request calendar access
-  const granted = await requestCalendarAccess();
+  const granted = await requestFullAccessToEvents();
   
   if (granted) {
-    // Get event calendars
-    const calendars = getCalendars();
-    console.log('Calendars:', calendars);
+    // Get calendars that support events
+    const eventCalendars = getCalendars('event');
+    console.log('Event Calendars:', eventCalendars);
     
-    // Create a new calendar
+    // Get calendars that support reminders
+    const reminderCalendars = getCalendars('reminder');
+    console.log('Reminder Calendars:', reminderCalendars);
+    
+    // Create a new calendar for events
     try {
-      const newCalendarId = await createCalendar({
+      const newCalendarId = await saveCalendar({
         title: 'My New Calendar',
         entityType: 'event',
         color: { hex: '#FF0000FF' }
       });
       console.log('Created new calendar with ID:', newCalendarId);
+      
+      // Update the calendar we just created
+      const updatedCalendarId = await saveCalendar({
+        id: newCalendarId,
+        title: 'My Updated Calendar',
+        entityType: 'event',
+        color: { hex: '#00FF00FF' }
+      });
+      
+      // Create a calendar without committing changes immediately
+      const draftCalendarId = await saveCalendar({
+        title: 'Draft Calendar',
+        entityType: 'event',
+        color: { hex: '#0000FFFF' }
+      }, false);
+      console.log('Created draft calendar with ID:', draftCalendarId);
     } catch (error) {
-      console.error('Failed to create calendar:', error);
+      console.error('Failed to save calendar:', error);
     }
   }
 }
@@ -62,30 +81,27 @@ Without these descriptions, permission requests will silently fail.
 
 ## API Overview
 
-This library offers two API styles:
+The addon provides a clean, JavaScript-friendly API for working with calendars and reminders.
 
-1. **EventKit-like API**: Closely mirrors the native EventKit API (imported via default export)
-2. **Simplified API**: More intuitive function names for common operations (accessed via destructuring from the `simple` object)
+Core functions include:
 
-### Core Functions
-
-| EventKit-like API | Simplified API | Description |
-|-------------------|----------------|-------------|
-| `requestFullAccessToEvents()` | `requestCalendarAccess()` | Request access to calendar events |
-| `requestFullAccessToReminders()` | `requestRemindersAccess()` | Request access to reminders |
-| `getCalendars('event')` | `getCalendars()` | Get event calendars |
-| `getCalendars('reminder')` | `getReminderLists()` | Get reminder lists |
-| `getCalendar(id)` | `getCalendar(id)` | Get a specific calendar by ID |
-| `saveCalendar(calendarOrData, commit)` | `createCalendar(calendarData)` | Create a new calendar |
-| `saveCalendar(calendarOrData, commit)` | `updateCalendar(calendar)` | Update an existing calendar |
+- `requestFullAccessToEvents()` - Request full access to the user's calendars
+- `requestFullAccessToReminders()` - Request full access to the user's reminders
+- `getCalendars(entityType)` - Get calendars for a specific entity type (event or reminder)
+- `getCalendar(identifier)` - Get a calendar by its identifier
+- `saveCalendar(calendarData, commit)` - Create or update a calendar, with optional commit parameter
+- `getSources()` - Get all available calendar sources
+- `getDelegateSources()` - Get all delegate sources (macOS 12.0+)
+- `getSource(sourceId)` - Get a specific source by ID
 
 ## Documentation
 
 For more detailed information, please refer to the following documentation:
 
 - [API Reference](docs/api-reference.md) - Detailed information about all functions and types
-- [Usage Examples](docs/examples.md) - Comprehensive examples for both JavaScript and TypeScript
 - [Troubleshooting Guide](docs/troubleshooting.md) - Solutions for common issues
+
+The API Reference includes detailed type definitions and usage information for all functions. Examples of using the library can be found in the Quick Start section above and within the API Reference.
 
 ## Building from Source
 

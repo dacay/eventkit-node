@@ -1,0 +1,8 @@
+---
+description: Used when creating or updating documentation
+globs: 
+alwaysApply: false
+---
+- Always use top-level README.md as main entry point
+- Use docs/ folder for detailed documentation
+- Update api-reference.md as Typescript APIs are changed

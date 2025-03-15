@@ -29,7 +29,39 @@ Napi::Object CalendarToJSObject(const Napi::CallbackInfo& info, Calendar *calend
     jsObject.Set("color", colorObject);
     jsObject.Set("source", Napi::String::New(env, [calendar.source UTF8String]));
     
+    // Add allowedEntityTypes array
+    Napi::Array allowedEntityTypes = Napi::Array::New(env, [calendar.allowedEntityTypes count]);
+    for (NSUInteger i = 0; i < [calendar.allowedEntityTypes count]; i++) {
+        NSString *entityType = calendar.allowedEntityTypes[i];
+        allowedEntityTypes.Set(i, Napi::String::New(env, [entityType UTF8String]));
+    }
+    jsObject.Set("allowedEntityTypes", allowedEntityTypes);
+    
     return jsObject;
+}
+
+// Helper to convert Source object to JS object
+Napi::Object SourceToJSObject(const Napi::CallbackInfo& info, Source *source) {
+    Napi::Env env = info.Env();
+    Napi::Object jsObject = Napi::Object::New(env);
+    
+    jsObject.Set("id", Napi::String::New(env, [source.id UTF8String]));
+    jsObject.Set("title", Napi::String::New(env, [source.title UTF8String]));
+    jsObject.Set("sourceType", Napi::String::New(env, [source.sourceType UTF8String]));
+    
+    return jsObject;
+}
+
+// Helper to convert NSArray of Source objects to JS array
+Napi::Array SourceArrayToJSArray(const Napi::CallbackInfo& info, NSArray<Source *> *sources) {
+    Napi::Env env = info.Env();
+    Napi::Array jsArray = Napi::Array::New(env, [sources count]);
+    
+    for (NSUInteger i = 0; i < [sources count]; i++) {
+        jsArray.Set(i, SourceToJSObject(info, sources[i]));
+    }
+    
+    return jsArray;
 }
 
 // Helper to convert NSArray of Calendar objects to JS array
@@ -100,6 +132,45 @@ Napi::Value GetCalendar(const Napi::CallbackInfo& info) {
     }
     
     return CalendarToJSObject(info, calendar);
+}
+
+// GetSources function
+Napi::Value GetSources(const Napi::CallbackInfo& info) {
+    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    NSArray<Source *> *sources = [bridge getSources];
+    
+    return SourceArrayToJSArray(info, sources);
+}
+
+// GetDelegateSources function
+Napi::Value GetDelegateSources(const Napi::CallbackInfo& info) {
+    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    NSArray<Source *> *sources = [bridge getDelegateSources];
+    
+    return SourceArrayToJSArray(info, sources);
+}
+
+// GetSource function
+Napi::Value GetSource(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Check if we have the required arguments
+    if (info.Length() < 1 || !info[0].IsString()) {
+        Napi::TypeError::New(env, "Source ID is required and must be a string").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    std::string sourceId = info[0].As<Napi::String>().Utf8Value();
+    NSString *sourceIdStr = [NSString stringWithUTF8String:sourceId.c_str()];
+    
+    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    Source *source = [bridge getSourceWithSourceId:sourceIdStr];
+    
+    if (source) {
+        return SourceToJSObject(info, source);
+    } else {
+        return env.Null();
+    }
 }
 
 // Class to handle the calendar access request
@@ -347,6 +418,9 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("requestCalendarAccess", Napi::Function::New(env, RequestCalendarAccess));
     exports.Set("requestRemindersAccess", Napi::Function::New(env, RequestRemindersAccess));
     exports.Set("saveCalendar", Napi::Function::New(env, SaveCalendar));
+    exports.Set("getSources", Napi::Function::New(env, GetSources));
+    exports.Set("getDelegateSources", Napi::Function::New(env, GetDelegateSources));
+    exports.Set("getSource", Napi::Function::New(env, GetSource));
     return exports;
 }
 
