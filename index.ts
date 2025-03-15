@@ -444,22 +444,4 @@ export function getEventsWithPredicate(predicate: Predicate): Event[] {
   }
   
   return nativeModule.getEventsWithPredicate(predicate);
-}
-
-/**
- * Get reminders matching a predicate
- * @param predicate - The predicate to match reminders against
- * @returns A promise that resolves to an array of Reminder objects matching the predicate
- * 
- * @example
- * // Get incomplete reminders
- * const predicate = createIncompleteReminderPredicate();
- * const reminders = await getRemindersWithPredicate(predicate);
- */
-export function getRemindersWithPredicate(predicate: Predicate): Promise<Reminder[]> {
-  if (!predicate.type.includes('Reminder') && predicate.type !== 'reminder') {
-    throw new Error('Predicate must be a reminder predicate');
-  }
-  
-  return nativeModule.getRemindersWithPredicate(predicate);
 } 

@@ -718,7 +718,8 @@ Napi::Object PredicateToJSObject(const Napi::CallbackInfo& info, Predicate *pred
     Napi::Object jsObject = Napi::Object::New(env);
     
     jsObject.Set("type", Napi::String::New(env, [predicate.predicateType UTF8String]));
-    // We don't expose the actual NSPredicate to JS, just its type
+    // Store the native Predicate pointer in the JavaScript object
+    jsObject.Set("_nativeHandle", Napi::External<Predicate>::New(env, predicate));
     
     return jsObject;
 }
@@ -904,140 +905,6 @@ Napi::Value GetEventsWithPredicate(const Napi::CallbackInfo& info) {
     return EventArrayToJSArray(info, events);
 }
 
-// Class to handle the reminders fetch operation
-class RemindersFetchWorker : public Napi::AsyncWorker {
-public:
-    RemindersFetchWorker(const Napi::Promise::Deferred& deferred, Predicate *predicate)
-        : Napi::AsyncWorker(Napi::Function::New(deferred.Env(), [](const Napi::CallbackInfo& info) { return info.Env().Undefined(); })),
-          deferred_(deferred), predicate_(predicate), reminders_(nil) {}
-    
-    // Execute is called on a worker thread
-    void Execute() override {
-        // This is intentionally left empty as we're not doing any work here
-        // The actual work is done in the Swift code
-    }
-    
-    // OnOK is called on the main thread when Execute completes
-    void OnOK() override {
-        Napi::HandleScope scope(Env());
-        
-        if (reminders_ == nil) {
-            deferred_.Resolve(Env().Null());
-            return;
-        }
-        
-        // Convert reminders to JS array
-        Napi::Array jsArray = Napi::Array::New(Env(), [reminders_ count]);
-        
-        for (NSUInteger i = 0; i < [reminders_ count]; i++) {
-            Reminder *reminder = reminders_[i];
-            Napi::Object jsObject = Napi::Object::New(Env());
-            
-            jsObject.Set("id", Napi::String::New(Env(), [reminder.id UTF8String]));
-            jsObject.Set("title", Napi::String::New(Env(), [reminder.title UTF8String]));
-            
-            if (reminder.notes) {
-                jsObject.Set("notes", Napi::String::New(Env(), [reminder.notes UTF8String]));
-            } else {
-                jsObject.Set("notes", Env().Null());
-            }
-            
-            jsObject.Set("calendarId", Napi::String::New(Env(), [reminder.calendarId UTF8String]));
-            jsObject.Set("calendarTitle", Napi::String::New(Env(), [reminder.calendarTitle UTF8String]));
-            jsObject.Set("completed", Napi::Boolean::New(Env(), reminder.completed));
-            
-            if (reminder.completionDate) {
-                jsObject.Set("completionDate", Napi::Date::New(Env(), reminder.completionDate.timeIntervalSince1970 * 1000));
-            } else {
-                jsObject.Set("completionDate", Env().Null());
-            }
-            
-            if (reminder.dueDate) {
-                jsObject.Set("dueDate", Napi::Date::New(Env(), reminder.dueDate.timeIntervalSince1970 * 1000));
-            } else {
-                jsObject.Set("dueDate", Env().Null());
-            }
-            
-            if (reminder.startDate) {
-                jsObject.Set("startDate", Napi::Date::New(Env(), reminder.startDate.timeIntervalSince1970 * 1000));
-            } else {
-                jsObject.Set("startDate", Env().Null());
-            }
-            
-            jsObject.Set("priority", Napi::Number::New(Env(), reminder.priority));
-            jsObject.Set("hasAlarms", Napi::Boolean::New(Env(), reminder.hasAlarms));
-            
-            jsArray.Set(i, jsObject);
-        }
-        
-        deferred_.Resolve(jsArray);
-    }
-    
-    // OnError is called on the main thread if Execute throws
-    void OnError(const Napi::Error& error) override {
-        Napi::HandleScope scope(Env());
-        deferred_.Reject(error.Value());
-    }
-    
-    // Method to set the reminders
-    void SetReminders(NSArray<Reminder *> *reminders) {
-        reminders_ = reminders;
-    }
-    
-private:
-    Napi::Promise::Deferred deferred_;
-    Predicate *predicate_;
-    NSArray<Reminder *> *reminders_;
-};
-
-// GetRemindersWithPredicate function
-Napi::Value GetRemindersWithPredicate(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    // Check if we have the required arguments
-    if (info.Length() < 1 || !info[0].IsObject()) {
-        Napi::TypeError::New(env, "Predicate is required and must be an object").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-    
-    // Get the predicate
-    Napi::Object predicateObj = info[0].As<Napi::Object>();
-    
-    // Check if it's a valid predicate
-    if (!predicateObj.Has("type") || !predicateObj.Get("type").IsString()) {
-        Napi::TypeError::New(env, "Invalid predicate object").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-    
-    // Get the predicate type
-    std::string predicateType = predicateObj.Get("type").As<Napi::String>().Utf8Value();
-    
-    // Check if it's a reminder predicate
-    if (predicateType != "reminder" && predicateType != "incompleteReminder" && predicateType != "completedReminder") {
-        Napi::TypeError::New(env, "Predicate must be a reminder predicate").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-    
-    // Get the predicate from the object's internal field
-    Predicate *predicate = reinterpret_cast<Predicate *>(predicateObj.Get("_nativeHandle").As<Napi::External<Predicate>>().Data());
-    
-    // Create a promise
-    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
-    
-    // Create the worker
-    RemindersFetchWorker* worker = new RemindersFetchWorker(deferred, predicate);
-    
-    // Get reminders with the predicate
-    EventKitBridge *bridge = GetSharedBridge();
-    [bridge getRemindersWithPredicateWithPredicate:predicate completion:^(NSArray<Reminder *> * _Nullable reminders) {
-        worker->SetReminders(reminders);
-        worker->Queue();
-    }];
-    
-    // Return the promise
-    return deferred.Promise();
-}
-
 // Initialize the module
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getCalendars", Napi::Function::New(env, GetCalendars));
@@ -1060,7 +927,6 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("createIncompleteReminderPredicate", Napi::Function::New(env, CreateIncompleteReminderPredicate));
     exports.Set("createCompletedReminderPredicate", Napi::Function::New(env, CreateCompletedReminderPredicate));
     exports.Set("getEventsWithPredicate", Napi::Function::New(env, GetEventsWithPredicate));
-    exports.Set("getRemindersWithPredicate", Napi::Function::New(env, GetRemindersWithPredicate));
     return exports;
 }
 

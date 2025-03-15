@@ -445,3 +445,12 @@ interface Predicate {
   type: string;
 }
 ```
+
+## API Behavior Note
+
+This library follows EventKit's native behavior regarding synchronous and asynchronous operations:
+
+- `getEventsWithPredicate()` is **synchronous** and returns events directly (matching EventKit's `events(matching:)`)
+- `getRemindersWithPredicate()` is **asynchronous** and returns a Promise (matching EventKit's `fetchReminders(matching:completion:)`)
+
+This design choice ensures the API accurately reflects the underlying EventKit implementation.

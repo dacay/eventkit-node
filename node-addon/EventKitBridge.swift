@@ -528,21 +528,4 @@ import Foundation
         
         return result
     }
-    
-    @objc public func getRemindersWithPredicate(predicate: Predicate, completion: @escaping ([Reminder]?) -> Void) {
-        guard predicate.predicateType.contains("Reminder") else {
-            completion(nil)
-            return
-        }
-        
-        eventStore.fetchReminders(matching: predicate.predicate) { ekReminders in
-            guard let ekReminders = ekReminders else {
-                completion(nil)
-                return
-            }
-            
-            let reminders = ekReminders.map { Reminder(from: $0) }
-            completion(reminders)
-        }
-    }
 } 
