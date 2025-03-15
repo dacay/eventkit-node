@@ -356,4 +356,193 @@ import Foundation
         }
         return nil
     }
+
+    // Event object for JSON serialization
+    @objc public class Event: NSObject {
+        @objc public let id: String
+        @objc public let title: String
+        @objc public let notes: String?
+        @objc public let startDate: Date
+        @objc public let endDate: Date
+        @objc public let isAllDay: Bool
+        @objc public let calendarId: String
+        @objc public let calendarTitle: String
+        @objc public let location: String?
+        @objc public let url: String?
+        @objc public let hasAlarms: Bool
+        @objc public let availability: String
+        
+        init(from ekEvent: EKEvent) {
+            self.id = ekEvent.eventIdentifier
+            self.title = ekEvent.title ?? "Untitled Event"
+            self.notes = ekEvent.notes
+            self.startDate = ekEvent.startDate
+            self.endDate = ekEvent.endDate
+            self.isAllDay = ekEvent.isAllDay
+            self.calendarId = ekEvent.calendar.calendarIdentifier
+            self.calendarTitle = ekEvent.calendar.title
+            self.location = ekEvent.location
+            self.url = ekEvent.url?.absoluteString
+            self.hasAlarms = ekEvent.hasAlarms
+            
+            // Convert availability to string
+            switch ekEvent.availability {
+            case .free:
+                self.availability = "free"
+            case .busy:
+                self.availability = "busy"
+            case .tentative:
+                self.availability = "tentative"
+            case .unavailable:
+                self.availability = "unavailable"
+            default:
+                self.availability = "unknown"
+            }
+            
+            super.init()
+        }
+    }
+    
+    // Reminder object for JSON serialization
+    @objc public class Reminder: NSObject {
+        @objc public let id: String
+        @objc public let title: String
+        @objc public let notes: String?
+        @objc public let calendarId: String
+        @objc public let calendarTitle: String
+        @objc public let completed: Bool
+        @objc public let completionDate: Date?
+        @objc public let dueDate: Date?
+        @objc public let startDate: Date?
+        @objc public let priority: Int
+        @objc public let hasAlarms: Bool
+        
+        init(from ekReminder: EKReminder) {
+            self.id = ekReminder.calendarItemIdentifier
+            self.title = ekReminder.title ?? "Untitled Reminder"
+            self.notes = ekReminder.notes
+            self.calendarId = ekReminder.calendar.calendarIdentifier
+            self.calendarTitle = ekReminder.calendar.title
+            self.completed = ekReminder.isCompleted
+            self.completionDate = ekReminder.completionDate
+            
+            // Convert date components to Date objects if available
+            if let dueDateComponents = ekReminder.dueDateComponents {
+                self.dueDate = Foundation.Calendar.current.date(from: dueDateComponents)
+            } else {
+                self.dueDate = nil
+            }
+            
+            if let startDateComponents = ekReminder.startDateComponents {
+                self.startDate = Foundation.Calendar.current.date(from: startDateComponents)
+            } else {
+                self.startDate = nil
+            }
+            
+            self.priority = ekReminder.priority
+            self.hasAlarms = ekReminder.hasAlarms
+            
+            super.init()
+        }
+    }
+    
+    // Predicate wrapper for serialization
+    @objc public class Predicate: NSObject {
+        @objc public let predicateType: String
+        @objc public let predicate: NSPredicate
+        
+        init(type: String, predicate: NSPredicate) {
+            self.predicateType = type
+            self.predicate = predicate
+            super.init()
+        }
+    }
+    
+    // MARK: - Predicate Methods
+    
+    @objc public func createEventPredicate(startDate: Date, endDate: Date, calendarIds: [String]?) -> Predicate {
+        // Convert calendar IDs to EKCalendar objects if provided
+        var calendars: [EKCalendar]? = nil
+        if let calendarIds = calendarIds, !calendarIds.isEmpty {
+            calendars = calendarIds.compactMap { eventStore.calendar(withIdentifier: $0) }
+        }
+        
+        // Create the predicate
+        let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: calendars)
+        
+        return Predicate(type: "event", predicate: predicate)
+    }
+    
+    @objc public func createReminderPredicate(calendarIds: [String]?) -> Predicate {
+        // Convert calendar IDs to EKCalendar objects if provided
+        var calendars: [EKCalendar]? = nil
+        if let calendarIds = calendarIds, !calendarIds.isEmpty {
+            calendars = calendarIds.compactMap { eventStore.calendar(withIdentifier: $0) }
+        }
+        
+        // Create the predicate
+        let predicate = eventStore.predicateForReminders(in: calendars)
+        
+        return Predicate(type: "reminder", predicate: predicate)
+    }
+    
+    @objc public func createIncompleteReminderPredicate(startDate: Date?, endDate: Date?, calendarIds: [String]?) -> Predicate {
+        // Convert calendar IDs to EKCalendar objects if provided
+        var calendars: [EKCalendar]? = nil
+        if let calendarIds = calendarIds, !calendarIds.isEmpty {
+            calendars = calendarIds.compactMap { eventStore.calendar(withIdentifier: $0) }
+        }
+        
+        // Create the predicate
+        let predicate = eventStore.predicateForIncompleteReminders(withDueDateStarting: startDate, ending: endDate, calendars: calendars)
+        
+        return Predicate(type: "incompleteReminder", predicate: predicate)
+    }
+    
+    @objc public func createCompletedReminderPredicate(startDate: Date?, endDate: Date?, calendarIds: [String]?) -> Predicate {
+        // Convert calendar IDs to EKCalendar objects if provided
+        var calendars: [EKCalendar]? = nil
+        if let calendarIds = calendarIds, !calendarIds.isEmpty {
+            calendars = calendarIds.compactMap { eventStore.calendar(withIdentifier: $0) }
+        }
+        
+        // Create the predicate
+        let predicate = eventStore.predicateForCompletedReminders(withCompletionDateStarting: startDate, ending: endDate, calendars: calendars)
+        
+        return Predicate(type: "completedReminder", predicate: predicate)
+    }
+    
+    // MARK: - Query Methods
+    
+    @objc public func getEventsWithPredicate(predicate: Predicate) -> NSArray {
+        guard predicate.predicateType == "event" else {
+            return NSArray() // Return empty array if predicate type doesn't match
+        }
+        
+        let events = eventStore.events(matching: predicate.predicate)
+        let result = NSMutableArray()
+        
+        for event in events {
+            result.add(Event(from: event))
+        }
+        
+        return result
+    }
+    
+    @objc public func getRemindersWithPredicate(predicate: Predicate, completion: @escaping ([Reminder]?) -> Void) {
+        guard predicate.predicateType.contains("Reminder") else {
+            completion(nil)
+            return
+        }
+        
+        eventStore.fetchReminders(matching: predicate.predicate) { ekReminders in
+            guard let ekReminders = ekReminders else {
+                completion(nil)
+                return
+            }
+            
+            let reminders = ekReminders.map { Reminder(from: $0) }
+            completion(reminders)
+        }
+    }
 } 

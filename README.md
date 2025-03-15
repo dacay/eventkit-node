@@ -17,7 +17,16 @@ npm install eventkit-node
 ## Quick Start
 
 ```javascript
-const { requestFullAccessToEvents, getCalendars, saveCalendar, commit, reset, refreshSourcesIfNecessary } = require('eventkit-node');
+const { 
+  requestFullAccessToEvents, 
+  getCalendars, 
+  saveCalendar, 
+  commit, 
+  reset, 
+  refreshSourcesIfNecessary,
+  createEventPredicate,
+  getEventsWithPredicate
+} = require('eventkit-node');
 
 async function example() {
   // Request calendar access
@@ -69,6 +78,19 @@ async function example() {
       
       // Refresh sources if necessary (e.g., after external changes)
       refreshSourcesIfNecessary();
+      
+      // Query events using predicates
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 7); // One week from now
+      
+      // Create a predicate for events in the next week
+      const eventPredicate = createEventPredicate(startDate, endDate);
+      
+      // Get events matching the predicate
+      const events = getEventsWithPredicate(eventPredicate);
+      console.log('Events in the next week:', events);
+      
     } catch (error) {
       console.error('Failed to save calendar:', error);
     }
@@ -77,6 +99,57 @@ async function example() {
 
 example();
 ```
+
+## Querying Events and Reminders
+
+EventKit Node.js provides a two-step approach for querying events and reminders, following the EventKit API design:
+
+1. Create a predicate using one of the predicate creation methods
+2. Query events or reminders using the predicate
+
+```javascript
+const { 
+  createEventPredicate, 
+  createReminderPredicate,
+  createIncompleteReminderPredicate,
+  createCompletedReminderPredicate,
+  getEventsWithPredicate,
+  getRemindersWithPredicate
+} = require('eventkit-node');
+
+async function queryExample() {
+  // Query events for the next week
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + 7);
+  
+  // Step 1: Create a predicate
+  const eventPredicate = createEventPredicate(startDate, endDate);
+  
+  // Step 2: Query events using the predicate
+  const events = getEventsWithPredicate(eventPredicate);
+  console.log('Events:', events);
+  
+  // Query all reminders in specific calendars
+  const calendarIds = ['calendar-id-1', 'calendar-id-2'];
+  const reminderPredicate = createReminderPredicate(calendarIds);
+  
+  // Reminder queries are asynchronous
+  const reminders = await getRemindersWithPredicate(reminderPredicate);
+  console.log('Reminders:', reminders);
+  
+  // Query incomplete reminders with due dates in the next week
+  const incompletePredicate = createIncompleteReminderPredicate(startDate, endDate);
+  const incompleteReminders = await getRemindersWithPredicate(incompletePredicate);
+  console.log('Incomplete reminders:', incompleteReminders);
+  
+  // Query completed reminders from the last week
+  const lastWeekStart = new Date();
+  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+  const completedPredicate = createCompletedReminderPredicate(lastWeekStart, new Date());
+  const completedReminders = await getRemindersWithPredicate(completedPredicate);
+  console.log('Completed reminders:', completedReminders);
+}
 
 ## Important: Privacy Descriptions Required
 
@@ -96,7 +169,7 @@ Without these descriptions, permission requests will silently fail.
 
 The addon provides a clean, JavaScript-friendly API for working with calendars and reminders.
 
-Core functions include:
+### Calendar Management
 
 - `requestFullAccessToEvents()` - Request full access to the user's calendars
 - `requestFullAccessToReminders()` - Request full access to the user's reminders
@@ -104,12 +177,30 @@ Core functions include:
 - `getCalendars(entityType)` - Get calendars for a specific entity type (event or reminder)
 - `getCalendar(identifier)` - Get a calendar by its identifier
 - `saveCalendar(calendarData, commit)` - Create or update a calendar, with optional commit parameter
+- `removeCalendar(identifier, commit)` - Remove a calendar by its identifier
+- `getDefaultCalendarForNewEvents()` - Get the default calendar for new events
+- `getDefaultCalendarForNewReminders()` - Get the default calendar for new reminders
+
+### Event Store Operations
+
 - `commit()` - Commit all pending changes to the event store
 - `reset()` - Reset the event store by discarding all unsaved changes
 - `refreshSourcesIfNecessary()` - Refresh the sources in the event store if necessary
+
+### Source Management
+
 - `getSources()` - Get all available calendar sources
 - `getDelegateSources()` - Get all delegate sources (macOS 12.0+)
 - `getSource(sourceId)` - Get a specific source by ID
+
+### Event and Reminder Queries
+
+- `createEventPredicate(startDate, endDate, calendarIds?)` - Create a predicate for querying events
+- `createReminderPredicate(calendarIds?)` - Create a predicate for querying all reminders
+- `createIncompleteReminderPredicate(startDate?, endDate?, calendarIds?)` - Create a predicate for querying incomplete reminders
+- `createCompletedReminderPredicate(startDate?, endDate?, calendarIds?)` - Create a predicate for querying completed reminders
+- `getEventsWithPredicate(predicate)` - Get events matching a predicate
+- `getRemindersWithPredicate(predicate)` - Get reminders matching a predicate (returns a Promise)
 
 ## Documentation
 
@@ -135,4 +226,4 @@ npm run build:ts
 
 ## License
 
-MIT
+MIT 
