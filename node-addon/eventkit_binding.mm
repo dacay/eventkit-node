@@ -10,6 +10,17 @@
 #import <EventKit/EventKit.h>
 #import "eventkit_node-Swift.h" // Generated header from Swift
 
+// Global EventKitBridge instance
+static EventKitBridge *gBridge = nil;
+
+// Helper function to get the shared EventKitBridge instance
+EventKitBridge* GetSharedBridge() {
+    if (gBridge == nil) {
+        gBridge = [[EventKitBridge alloc] init];
+    }
+    return gBridge;
+}
+
 // Helper to convert Calendar object to JS object
 Napi::Object CalendarToJSObject(const Napi::CallbackInfo& info, Calendar *calendar) {
     Napi::Env env = info.Env();
@@ -100,7 +111,7 @@ Napi::Value GetCalendars(const Napi::CallbackInfo& info) {
     // Create an NSString from the entity type
     NSString* entityTypeString = [NSString stringWithUTF8String:entityType.c_str()];
     
-    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    EventKitBridge *bridge = GetSharedBridge();
     NSArray<Calendar *> *calendars = [bridge getCalendarsWithEntityTypeString:entityTypeString];
     
     return CalendarArrayToJSArray(info, calendars);
@@ -123,7 +134,7 @@ Napi::Value GetCalendar(const Napi::CallbackInfo& info) {
     // Create an NSString from the identifier
     NSString* identifierString = [NSString stringWithUTF8String:identifier.c_str()];
     
-    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    EventKitBridge *bridge = GetSharedBridge();
     Calendar *calendar = [bridge getCalendarWithIdentifier:identifierString];
     
     // Return null if calendar is not found
@@ -136,7 +147,7 @@ Napi::Value GetCalendar(const Napi::CallbackInfo& info) {
 
 // GetSources function
 Napi::Value GetSources(const Napi::CallbackInfo& info) {
-    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    EventKitBridge *bridge = GetSharedBridge();
     NSArray<Source *> *sources = [bridge getSources];
     
     return SourceArrayToJSArray(info, sources);
@@ -144,7 +155,7 @@ Napi::Value GetSources(const Napi::CallbackInfo& info) {
 
 // GetDelegateSources function
 Napi::Value GetDelegateSources(const Napi::CallbackInfo& info) {
-    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    EventKitBridge *bridge = GetSharedBridge();
     NSArray<Source *> *sources = [bridge getDelegateSources];
     
     return SourceArrayToJSArray(info, sources);
@@ -163,7 +174,7 @@ Napi::Value GetSource(const Napi::CallbackInfo& info) {
     std::string sourceId = info[0].As<Napi::String>().Utf8Value();
     NSString *sourceIdStr = [NSString stringWithUTF8String:sourceId.c_str()];
     
-    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    EventKitBridge *bridge = GetSharedBridge();
     Source *source = [bridge getSourceWithSourceId:sourceIdStr];
     
     if (source) {
@@ -303,7 +314,7 @@ Napi::Value RequestCalendarAccess(const Napi::CallbackInfo& info) {
     CalendarAccessWorker* worker = new CalendarAccessWorker(deferred);
     
     // Create the EventKitBridge
-    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    EventKitBridge *bridge = GetSharedBridge();
     
     // Request calendar access
     [bridge requestCalendarAccessWithCompletion:^(BOOL granted) {
@@ -326,7 +337,7 @@ Napi::Value RequestRemindersAccess(const Napi::CallbackInfo& info) {
     RemindersAccessWorker* worker = new RemindersAccessWorker(deferred);
     
     // Create the EventKitBridge
-    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    EventKitBridge *bridge = GetSharedBridge();
     
     // Request reminders access
     [bridge requestRemindersAccessWithCompletion:^(BOOL granted) {
@@ -398,7 +409,7 @@ Napi::Value SaveCalendar(const Napi::CallbackInfo& info) {
     SaveCalendarWorker* worker = new SaveCalendarWorker(deferred);
     
     // Create the EventKitBridge
-    EventKitBridge *bridge = [[EventKitBridge alloc] init];
+    EventKitBridge *bridge = GetSharedBridge();
     
     // Save the calendar
     [bridge saveCalendarWithCalendarData:calendarDict commit:commit completion:^(BOOL success, NSString * _Nullable calendarIdOrError) {
@@ -411,6 +422,81 @@ Napi::Value SaveCalendar(const Napi::CallbackInfo& info) {
     return deferred.Promise();
 }
 
+// RequestWriteOnlyAccessToEvents function
+Napi::Value RequestWriteOnlyAccessToEvents(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Create a promise
+    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
+    
+    // Create the worker
+    CalendarAccessWorker* worker = new CalendarAccessWorker(deferred);
+    
+    // Create the EventKitBridge
+    EventKitBridge *bridge = GetSharedBridge();
+    
+    // Request write-only access to events
+    [bridge requestWriteOnlyAccessToEventsWithCompletion:^(BOOL granted) {
+        worker->SetGranted(granted);
+        worker->Queue();
+    }];
+    
+    // Return the promise
+    return deferred.Promise();
+}
+
+// Commit function
+Napi::Value Commit(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Create a promise
+    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
+    
+    // Create the EventKitBridge
+    EventKitBridge *bridge = GetSharedBridge();
+    
+    // Commit changes
+    [bridge commitWithCompletion:^(BOOL success, NSString * _Nullable errorMessage) {
+        if (success) {
+            deferred.Resolve(Napi::Boolean::New(env, true));
+        } else {
+            std::string error = errorMessage ? [errorMessage UTF8String] : "Unknown error during commit";
+            deferred.Reject(Napi::Error::New(env, error).Value());
+        }
+    }];
+    
+    // Return the promise
+    return deferred.Promise();
+}
+
+// Reset function
+Napi::Value Reset(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Create the EventKitBridge
+    EventKitBridge *bridge = GetSharedBridge();
+    
+    // Reset the event store
+    [bridge reset];
+    
+    // Return undefined
+    return env.Undefined();
+}
+
+// RefreshSourcesIfNecessary function
+Napi::Value RefreshSourcesIfNecessary(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Create the EventKitBridge
+    EventKitBridge *bridge = GetSharedBridge();
+    
+    // Refresh sources if necessary
+    [bridge refreshSourcesIfNecessary];
+    
+    // Return undefined
+    return env.Undefined();
+}
+
 // Initialize the module
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getCalendars", Napi::Function::New(env, GetCalendars));
@@ -421,6 +507,10 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getSources", Napi::Function::New(env, GetSources));
     exports.Set("getDelegateSources", Napi::Function::New(env, GetDelegateSources));
     exports.Set("getSource", Napi::Function::New(env, GetSource));
+    exports.Set("requestWriteOnlyAccessToEvents", Napi::Function::New(env, RequestWriteOnlyAccessToEvents));
+    exports.Set("commit", Napi::Function::New(env, Commit));
+    exports.Set("reset", Napi::Function::New(env, Reset));
+    exports.Set("refreshSourcesIfNecessary", Napi::Function::New(env, RefreshSourcesIfNecessary));
     return exports;
 }
 

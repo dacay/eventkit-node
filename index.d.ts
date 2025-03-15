@@ -105,11 +105,38 @@ export function getCalendar(identifier: string): Calendar | null;
 export function requestFullAccessToEvents(): Promise<boolean>;
 
 /**
+ * Request write-only access to calendar events
+ * @returns A promise that resolves to true if access was granted, false otherwise
+ * @note On macOS 14.0+, uses requestWriteOnlyAccessToEvents. On older versions, falls back to requestAccess(to: .event)
+ * @note Write-only access allows creating and modifying events but not reading them
+ */
+export function requestWriteOnlyAccessToEvents(): Promise<boolean>;
+
+/**
  * Request full access to reminders
  * @returns A promise that resolves to true if access was granted, false otherwise
  * @note On macOS 14.0+, uses requestFullAccessToReminders. On older versions, falls back to requestAccess(to: .reminder)
  */
 export function requestFullAccessToReminders(): Promise<boolean>;
+
+/**
+ * Commit all pending changes to the event store
+ * @returns A promise that resolves when the commit is successful
+ * @throws Error if the commit fails with details about the failure
+ * @note This is only needed if you've created or modified calendars with commit=false
+ */
+export function commit(): Promise<void>;
+
+/**
+ * Reset the event store by discarding all unsaved changes
+ */
+export function reset(): void;
+
+/**
+ * Refresh the sources in the event store if necessary
+ * @note This can be useful if external changes have been made to the calendar database
+ */
+export function refreshSourcesIfNecessary(): void;
 
 /**
  * Save a calendar (create new or update existing)

@@ -17,7 +17,7 @@ npm install eventkit-node
 ## Quick Start
 
 ```javascript
-const { requestFullAccessToEvents, getCalendars, saveCalendar } = require('eventkit-node');
+const { requestFullAccessToEvents, getCalendars, saveCalendar, commit, reset, refreshSourcesIfNecessary } = require('eventkit-node');
 
 async function example() {
   // Request calendar access
@@ -56,6 +56,19 @@ async function example() {
         color: { hex: '#0000FFFF' }
       }, false);
       console.log('Created draft calendar with ID:', draftCalendarId);
+      
+      // Commit the changes manually
+      try {
+        await commit();
+        console.log('Changes committed successfully');
+      } catch (error) {
+        console.error('Failed to commit changes:', error);
+        // Reset the event store to discard unsaved changes
+        reset();
+      }
+      
+      // Refresh sources if necessary (e.g., after external changes)
+      refreshSourcesIfNecessary();
     } catch (error) {
       console.error('Failed to save calendar:', error);
     }
@@ -87,9 +100,13 @@ Core functions include:
 
 - `requestFullAccessToEvents()` - Request full access to the user's calendars
 - `requestFullAccessToReminders()` - Request full access to the user's reminders
+- `requestWriteOnlyAccessToEvents()` - Request write-only access to the user's calendars
 - `getCalendars(entityType)` - Get calendars for a specific entity type (event or reminder)
 - `getCalendar(identifier)` - Get a calendar by its identifier
 - `saveCalendar(calendarData, commit)` - Create or update a calendar, with optional commit parameter
+- `commit()` - Commit all pending changes to the event store
+- `reset()` - Reset the event store by discarding all unsaved changes
+- `refreshSourcesIfNecessary()` - Refresh the sources in the event store if necessary
 - `getSources()` - Get all available calendar sources
 - `getDelegateSources()` - Get all delegate sources (macOS 12.0+)
 - `getSource(sourceId)` - Get a specific source by ID

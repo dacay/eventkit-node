@@ -7,9 +7,9 @@ This document provides detailed information about the EventKit Node.js addon API
 The API is available through direct imports:
 
 ```javascript
-const { getCalendars, saveCalendar, requestFullAccessToEvents, requestFullAccessToReminders } = require('eventkit-node');
+const { getCalendars, saveCalendar, requestFullAccessToEvents, requestFullAccessToReminders, requestWriteOnlyAccessToEvents, commit, reset, refreshSourcesIfNecessary } = require('eventkit-node');
 // or
-import { getCalendars, saveCalendar, requestFullAccessToEvents, requestFullAccessToReminders } from 'eventkit-node';
+import { getCalendars, saveCalendar, requestFullAccessToEvents, requestFullAccessToReminders, requestWriteOnlyAccessToEvents, commit, reset, refreshSourcesIfNecessary } from 'eventkit-node';
 ```
 
 ### `getCalendars(entityType?: 'event' | 'reminder')`
@@ -41,6 +41,36 @@ Requests full access to reminders and returns a promise that resolves to a boole
 - Returns: A promise that resolves to true if access was granted, false otherwise.
 - On macOS 14.0 and later: Uses the `requestFullAccessToReminders` method from EventKit
 - On macOS 10.15 to 13.x: Falls back to the `requestAccess(to: .reminder)` method
+
+### `requestWriteOnlyAccessToEvents()`
+
+Requests write-only access to calendar events and returns a promise that resolves to a boolean indicating whether access was granted.
+
+- Returns: A promise that resolves to true if access was granted, false otherwise.
+- On macOS 14.0 and later: Uses the `requestWriteOnlyAccessToEvents` method from EventKit
+- On macOS 10.15 to 13.x: Falls back to the `requestAccess(to: .event)` method
+- Note: Write-only access allows creating and modifying events but not reading them
+
+### `commit()`
+
+Commits all pending changes to the event store.
+
+- Returns: A promise that resolves when the commit is successful
+- Throws: Error if the commit fails with details about the failure
+- Note: This is only needed if you've created or modified calendars with commit=false
+
+### `reset()`
+
+Resets the event store by discarding all unsaved changes.
+
+- Returns: void
+
+### `refreshSourcesIfNecessary()`
+
+Refreshes the sources in the event store if necessary.
+
+- Returns: void
+- Note: This can be useful if external changes have been made to the calendar database
 
 ### `saveCalendar(calendarData: CalendarData, commit?: boolean)`
 

@@ -24,6 +24,20 @@ import Foundation
         }
     }
     
+    @objc public func requestWriteOnlyAccessToEvents(completion: @escaping (Bool) -> Void) {
+        if #available(macOS 14.0, *) {
+            eventStore.requestWriteOnlyAccessToEvents { granted, error in
+                completion(granted)
+            }
+        } else {
+            // Fall back to the older API for macOS 10.15-13.x
+            // Write-only access is not available in older versions, so we use regular access
+            eventStore.requestAccess(to: .event) { granted, error in
+                completion(granted)
+            }
+        }
+    }
+    
     @objc public func requestRemindersAccess(completion: @escaping (Bool) -> Void) {
         if #available(macOS 14.0, *) {
             eventStore.requestFullAccessToReminders { granted, error in
@@ -294,5 +308,22 @@ import Foundation
             return Source(ekSource: source)
         }
         return nil
+    }
+
+    @objc public func commit(completion: @escaping (Bool, String?) -> Void) {
+        do {
+            try eventStore.commit()
+            completion(true, nil)
+        } catch {
+            completion(false, error.localizedDescription)
+        }
+    }
+    
+    @objc public func reset() {
+        eventStore.reset()
+    }
+    
+    @objc public func refreshSourcesIfNecessary() {
+        eventStore.refreshSourcesIfNecessary()
     }
 } 
