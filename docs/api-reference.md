@@ -285,23 +285,29 @@ const predicate = createEventPredicate(startDate, endDate);
 const events = getEventsWithPredicate(predicate);
 ```
 
-### `getRemindersWithPredicate(predicate: Predicate)`
+### `getRemindersWithPredicate(predicate: Predicate): Promise<Reminder[]>`
 
-Gets reminders matching a predicate. This is an asynchronous operation.
+Gets reminders matching a predicate. This is an asynchronous operation that returns a Promise.
 
-- `predicate`: The predicate to match reminders against, created with one of the reminder predicate creation methods.
-- Returns: A Promise that resolves to an array of Reminder objects matching the predicate.
-- Throws: Error if the predicate is not a reminder predicate.
+**Parameters:**
+- `predicate`: A predicate created with `createReminderPredicate`, `createIncompleteReminderPredicate`, or `createCompletedReminderPredicate`
+
+**Returns:** A Promise that resolves to an array of Reminder objects matching the predicate
 
 **Example:**
-
 ```javascript
+// Get all reminders
+const predicate = createReminderPredicate();
+const reminders = await getRemindersWithPredicate(predicate);
+console.log(reminders);
+
 // Get incomplete reminders due in the next week
 const startDate = new Date();
 const endDate = new Date();
 endDate.setDate(endDate.getDate() + 7);
-const predicate = createIncompleteReminderPredicate(startDate, endDate);
-const reminders = await getRemindersWithPredicate(predicate);
+const incompletePredicate = createIncompleteReminderPredicate(startDate, endDate);
+const incompleteReminders = await getRemindersWithPredicate(incompletePredicate);
+console.log(incompleteReminders);
 ```
 
 ## Types
