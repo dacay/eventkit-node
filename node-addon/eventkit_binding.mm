@@ -765,7 +765,6 @@ Napi::Value CreateEventPredicate(const Napi::CallbackInfo& info) {
 
 // CreateReminderPredicate function
 Napi::Value CreateReminderPredicate(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
     
     // Get the calendar IDs if provided
     NSMutableArray<NSString *> *calendarIds = nil;
@@ -791,7 +790,6 @@ Napi::Value CreateReminderPredicate(const Napi::CallbackInfo& info) {
 
 // CreateIncompleteReminderPredicate function
 Napi::Value CreateIncompleteReminderPredicate(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
     
     // Get the start date if provided
     NSDate *startDate = nil;
@@ -831,7 +829,6 @@ Napi::Value CreateIncompleteReminderPredicate(const Napi::CallbackInfo& info) {
 
 // CreateCompletedReminderPredicate function
 Napi::Value CreateCompletedReminderPredicate(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
     
     // Get the start date if provided
     NSDate *startDate = nil;
