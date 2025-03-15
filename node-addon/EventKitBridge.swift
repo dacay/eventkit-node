@@ -342,4 +342,18 @@ import Foundation
             completion(false, error.localizedDescription)
         }
     }
+    
+    @objc public func getDefaultCalendarForNewEvents() -> Calendar? {
+        if let defaultCalendar = eventStore.defaultCalendarForNewEvents {
+            return Calendar(from: defaultCalendar)
+        }
+        return nil
+    }
+    
+    @objc public func getDefaultCalendarForNewReminders() -> Calendar? {
+        if let defaultCalendar = eventStore.defaultCalendarForNewReminders() {
+            return Calendar(from: defaultCalendar)
+        }
+        return nil
+    }
 } 

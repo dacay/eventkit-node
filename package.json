@@ -6,10 +6,11 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "swift build -c release && cp .build/release/libEventKitBridge.a ./ && node-gyp rebuild",
+    "build": "npm run build:native && npm run build:ts",
+    "build:native": "swift build -c release && cp .build/release/libEventKitBridge.a ./ && node-gyp rebuild",
     "clean": "rm -rf build .build libEventKitBridge.a dist",
     "build:ts": "tsc",
-    "prepublishOnly": "npm run clean && npm run build && npm run build:ts"
+    "prepublishOnly": "npm run clean && npm run build"
   },
   "dependencies": {
     "node-addon-api": "^8.3.1"

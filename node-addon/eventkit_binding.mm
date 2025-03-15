@@ -543,6 +543,42 @@ Napi::Value RefreshSourcesIfNecessary(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
+// GetDefaultCalendarForNewEvents function
+Napi::Value GetDefaultCalendarForNewEvents(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Create the EventKitBridge
+    EventKitBridge *bridge = GetSharedBridge();
+    
+    // Get the default calendar for new events
+    Calendar *calendar = [bridge getDefaultCalendarForNewEvents];
+    
+    // Return null if no default calendar is set
+    if (calendar == nil) {
+        return env.Null();
+    }
+    
+    return CalendarToJSObject(info, calendar);
+}
+
+// GetDefaultCalendarForNewReminders function
+Napi::Value GetDefaultCalendarForNewReminders(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Create the EventKitBridge
+    EventKitBridge *bridge = GetSharedBridge();
+    
+    // Get the default calendar for new reminders
+    Calendar *calendar = [bridge getDefaultCalendarForNewReminders];
+    
+    // Return null if no default calendar is set
+    if (calendar == nil) {
+        return env.Null();
+    }
+    
+    return CalendarToJSObject(info, calendar);
+}
+
 // RemoveCalendar function
 Napi::Value RemoveCalendar(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -599,6 +635,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("commit", Napi::Function::New(env, Commit));
     exports.Set("reset", Napi::Function::New(env, Reset));
     exports.Set("refreshSourcesIfNecessary", Napi::Function::New(env, RefreshSourcesIfNecessary));
+    exports.Set("getDefaultCalendarForNewEvents", Napi::Function::New(env, GetDefaultCalendarForNewEvents));
+    exports.Set("getDefaultCalendarForNewReminders", Napi::Function::New(env, GetDefaultCalendarForNewReminders));
     return exports;
 }
 
