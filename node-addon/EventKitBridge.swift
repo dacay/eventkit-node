@@ -326,4 +326,20 @@ import Foundation
     @objc public func refreshSourcesIfNecessary() {
         eventStore.refreshSourcesIfNecessary()
     }
+    
+    @objc public func removeCalendar(identifier: String, commit: Bool, completion: @escaping (Bool, String?) -> Void) {
+        // Get the calendar by identifier
+        guard let calendar = eventStore.calendar(withIdentifier: identifier) else {
+            completion(false, "Calendar not found")
+            return
+        }
+        
+        // Try to remove the calendar
+        do {
+            try eventStore.removeCalendar(calendar, commit: commit)
+            completion(true, nil)
+        } catch {
+            completion(false, error.localizedDescription)
+        }
+    }
 } 

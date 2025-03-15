@@ -221,4 +221,38 @@ export function getDelegateSources(): Source[] {
  */
 export function getSource(sourceId: string): Source | null {
   return nativeModule.getSource(sourceId);
+}
+
+/**
+ * Remove a calendar with the specified identifier
+ * @param calendarId - The unique identifier of the calendar to remove
+ * @param commit - Whether to commit the changes immediately (default: true)
+ * @returns A promise that resolves to true if the calendar was successfully removed
+ * @throws Error if the calendar does not exist, cannot be modified, or the operation fails
+ * 
+ * @example
+ * // Remove a calendar
+ * try {
+ *   await removeCalendar('calendar-id');
+ *   console.log('Calendar removed successfully');
+ * } catch (error) {
+ *   console.error('Failed to remove calendar:', error);
+ * }
+ * 
+ * @example
+ * // Remove a calendar without committing changes
+ * try {
+ *   await removeCalendar('calendar-id', false);
+ *   // Later, commit the changes
+ *   await commit();
+ * } catch (error) {
+ *   console.error('Failed to remove calendar:', error);
+ * }
+ */
+export function removeCalendar(calendarId: string, commit: boolean = true): Promise<boolean> {
+  if (!calendarId) {
+    throw new Error('Calendar ID is required.');
+  }
+  
+  return nativeModule.removeCalendar(calendarId, commit);
 } 

@@ -303,6 +303,52 @@ private:
     std::string errorMessage_;
 };
 
+// Class to handle the remove calendar operation
+class RemoveCalendarWorker : public Napi::AsyncWorker {
+public:
+    RemoveCalendarWorker(const Napi::Promise::Deferred& deferred)
+        : Napi::AsyncWorker(Napi::Function::New(deferred.Env(), [](const Napi::CallbackInfo& info) { return info.Env().Undefined(); })),
+          deferred_(deferred), success_(false), errorMessage_("") {}
+    
+    // Execute is called on a worker thread
+    void Execute() override {
+        // This is intentionally left empty as we're not doing any work here
+        // The actual work is done in the Swift code
+    }
+    
+    // OnOK is called on the main thread when Execute completes
+    void OnOK() override {
+        Napi::HandleScope scope(Env());
+        
+        if (success_) {
+            // If successful, return true
+            deferred_.Resolve(Napi::Boolean::New(Env(), true));
+        } else {
+            // If failed, reject with the error message
+            deferred_.Reject(Napi::Error::New(Env(), errorMessage_).Value());
+        }
+    }
+    
+    // OnError is called on the main thread if Execute throws
+    void OnError(const Napi::Error& error) override {
+        Napi::HandleScope scope(Env());
+        deferred_.Reject(error.Value());
+    }
+    
+    // Method to set the result values
+    void SetResult(bool success, const std::string& errorMessage) {
+        success_ = success;
+        if (!success) {
+            errorMessage_ = errorMessage;
+        }
+    }
+    
+private:
+    Napi::Promise::Deferred deferred_;
+    bool success_;
+    std::string errorMessage_;
+};
+
 // RequestCalendarAccess function
 Napi::Value RequestCalendarAccess(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -497,6 +543,47 @@ Napi::Value RefreshSourcesIfNecessary(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
+// RemoveCalendar function
+Napi::Value RemoveCalendar(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Check if calendar identifier parameter is provided
+    if (info.Length() < 1 || !info[0].IsString()) {
+        Napi::Error::New(env, "Calendar identifier is required and must be a string.")
+            .ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Get the calendar identifier parameter
+    std::string identifier = info[0].As<Napi::String>().Utf8Value();
+    
+    // Get the commit parameter, default to true
+    bool commit = true;
+    if (info.Length() > 1 && info[1].IsBoolean()) {
+        commit = info[1].As<Napi::Boolean>().Value();
+    }
+    
+    // Create a promise
+    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
+    
+    // Create the worker
+    RemoveCalendarWorker* worker = new RemoveCalendarWorker(deferred);
+    
+    // Create the EventKitBridge
+    EventKitBridge *bridge = GetSharedBridge();
+    
+    // Remove the calendar
+    NSString* identifierString = [NSString stringWithUTF8String:identifier.c_str()];
+    [bridge removeCalendarWithIdentifier:identifierString commit:commit completion:^(BOOL success, NSString * _Nullable errorMessage) {
+        std::string error = errorMessage ? [errorMessage UTF8String] : "";
+        worker->SetResult(success, error);
+        worker->Queue();
+    }];
+    
+    // Return the promise
+    return deferred.Promise();
+}
+
 // Initialize the module
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getCalendars", Napi::Function::New(env, GetCalendars));
@@ -504,6 +591,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("requestCalendarAccess", Napi::Function::New(env, RequestCalendarAccess));
     exports.Set("requestRemindersAccess", Napi::Function::New(env, RequestRemindersAccess));
     exports.Set("saveCalendar", Napi::Function::New(env, SaveCalendar));
+    exports.Set("removeCalendar", Napi::Function::New(env, RemoveCalendar));
     exports.Set("getSources", Napi::Function::New(env, GetSources));
     exports.Set("getDelegateSources", Napi::Function::New(env, GetDelegateSources));
     exports.Set("getSource", Napi::Function::New(env, GetSource));
