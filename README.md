@@ -226,4 +226,4 @@ npm run build:ts
 
 ## License
 
-MIT 
+[Mozilla Public License Version 2.0 (MPL-2.0)](LICENSE) 

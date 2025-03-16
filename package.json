@@ -1,7 +1,7 @@
 {
   "name": "eventkit-node",
   "author": "Deniz Acay",
-  "license": "MIT",
+  "license": "MPL-2.0",
   "version": "1.0.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
