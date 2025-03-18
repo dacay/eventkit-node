@@ -658,6 +658,13 @@ Napi::Object EventToJSObject(const Napi::CallbackInfo& info, Event *event) {
     jsObject.Set("hasAlarms", Napi::Boolean::New(env, event.hasAlarms));
     jsObject.Set("availability", Napi::String::New(env, [event.availability UTF8String]));
     
+    // Add externalIdentifier if available
+    if (event.externalIdentifier) {
+        jsObject.Set("externalIdentifier", Napi::String::New(env, [event.externalIdentifier UTF8String]));
+    } else {
+        jsObject.Set("externalIdentifier", env.Null());
+    }
+    
     return jsObject;
 }
 
@@ -741,6 +748,13 @@ Napi::Object ReminderToJSObject(const Napi::CallbackInfo& info, Reminder *remind
     
     jsObject.Set("priority", Napi::Number::New(env, reminder.priority));
     jsObject.Set("hasAlarms", Napi::Boolean::New(env, reminder.hasAlarms));
+    
+    // Add externalIdentifier if available
+    if (reminder.externalIdentifier) {
+        jsObject.Set("externalIdentifier", Napi::String::New(env, [reminder.externalIdentifier UTF8String]));
+    } else {
+        jsObject.Set("externalIdentifier", env.Null());
+    }
     
     return jsObject;
 }
@@ -1016,6 +1030,13 @@ public:
             jsObject.Set("priority", Napi::Number::New(env, reminder.priority));
             jsObject.Set("hasAlarms", Napi::Boolean::New(env, reminder.hasAlarms));
             
+            // Add externalIdentifier if available
+            if (reminder.externalIdentifier) {
+                jsObject.Set("externalIdentifier", Napi::String::New(env, [reminder.externalIdentifier UTF8String]));
+            } else {
+                jsObject.Set("externalIdentifier", env.Null());
+            }
+            
             jsArray.Set(i, jsObject);
         }
         
@@ -1109,6 +1130,126 @@ Napi::Value GetRemindersWithPredicate(const Napi::CallbackInfo& info) {
     return deferred.Promise();
 }
 
+// GetCalendarItem function
+Napi::Value GetCalendarItem(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Check if identifier parameter is provided
+    if (info.Length() < 1 || !info[0].IsString()) {
+        Napi::Error::New(env, "Calendar item identifier is required and must be a string.")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    // Get the identifier parameter
+    std::string identifier = info[0].As<Napi::String>().Utf8Value();
+    
+    // Create an NSString from the identifier
+    NSString* identifierString = [NSString stringWithUTF8String:identifier.c_str()];
+    
+    // Use a try-catch block to catch any Objective-C exceptions
+    @try {
+        EventKitBridge *bridge = GetSharedBridge();
+        NSDictionary *result = [bridge getCalendarItemWithIdentifier:identifierString];
+        
+        // Return null if no item is found
+        if (result == nil) {
+            return env.Null();
+        }
+        
+        // Get the type and item
+        NSString *type = result[@"type"];
+        
+        // Create a JS object with the type and the appropriate item
+        Napi::Object jsObject = Napi::Object::New(env);
+        
+        // Add the type property
+        jsObject.Set("type", Napi::String::New(env, [type UTF8String]));
+        
+        // Add the item property based on the type
+        if ([type isEqualToString:@"event"]) {
+            Event *event = result[@"item"];
+            jsObject.Set("item", EventToJSObject(info, event));
+        } else if ([type isEqualToString:@"reminder"]) {
+            Reminder *reminder = result[@"item"];
+            jsObject.Set("item", ReminderToJSObject(info, reminder));
+        }
+        
+        return jsObject;
+    } @catch (NSException *exception) {
+        // Create a helpful error message
+        std::string errorMessage = "Error retrieving calendar item: ";
+        errorMessage += [[exception reason] UTF8String];
+        
+        Napi::Error::New(env, errorMessage).ThrowAsJavaScriptException();
+        return env.Null();
+    }
+}
+
+// GetCalendarItemsWithExternalIdentifier function
+Napi::Value GetCalendarItemsWithExternalIdentifier(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Check if external identifier parameter is provided
+    if (info.Length() < 1 || !info[0].IsString()) {
+        Napi::Error::New(env, "External identifier is required and must be a string.")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    // Get the external identifier parameter
+    std::string externalIdentifier = info[0].As<Napi::String>().Utf8Value();
+    
+    // Create an NSString from the external identifier
+    NSString* externalIdentifierString = [NSString stringWithUTF8String:externalIdentifier.c_str()];
+    
+    // Use a try-catch block to catch any Objective-C exceptions
+    @try {
+        EventKitBridge *bridge = GetSharedBridge();
+        NSArray *results = [bridge getCalendarItemsWithExternalIdentifier:externalIdentifierString];
+        
+        // Return null if no items are found
+        if (results == nil) {
+            return env.Null();
+        }
+        
+        // Create a JavaScript array to hold the results
+        Napi::Array jsArray = Napi::Array::New(env, [results count]);
+        
+        // Process each item
+        for (NSUInteger i = 0; i < [results count]; i++) {
+            NSDictionary *result = results[i];
+            NSString *type = result[@"type"];
+            
+            // Create a JS object for this item
+            Napi::Object jsObject = Napi::Object::New(env);
+            
+            // Add the type property
+            jsObject.Set("type", Napi::String::New(env, [type UTF8String]));
+            
+            // Add the item property based on the type
+            if ([type isEqualToString:@"event"]) {
+                Event *event = result[@"item"];
+                jsObject.Set("item", EventToJSObject(info, event));
+            } else if ([type isEqualToString:@"reminder"]) {
+                Reminder *reminder = result[@"item"];
+                jsObject.Set("item", ReminderToJSObject(info, reminder));
+            }
+            
+            jsArray.Set(i, jsObject);
+        }
+        
+        return jsArray;
+    } @catch (NSException *exception) {
+        // Create a helpful error message
+        std::string errorMessage = "Error retrieving calendar items: ";
+        errorMessage += [[exception reason] UTF8String];
+        
+        Napi::Error::New(env, errorMessage).ThrowAsJavaScriptException();
+        return env.Null();
+    }
+}
+
 // Initialize the module
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getCalendars", Napi::Function::New(env, GetCalendars));
@@ -1133,6 +1274,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getEventsWithPredicate", Napi::Function::New(env, GetEventsWithPredicate));
     exports.Set("getRemindersWithPredicate", Napi::Function::New(env, GetRemindersWithPredicate));
     exports.Set("getEvent", Napi::Function::New(env, GetEvent));
+    exports.Set("getCalendarItem", Napi::Function::New(env, GetCalendarItem));
+    exports.Set("getCalendarItemsWithExternalIdentifier", Napi::Function::New(env, GetCalendarItemsWithExternalIdentifier));
     return exports;
 }
 

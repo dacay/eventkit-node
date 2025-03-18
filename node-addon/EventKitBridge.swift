@@ -371,6 +371,7 @@ import Foundation
         @objc public let url: String?
         @objc public let hasAlarms: Bool
         @objc public let availability: String
+        @objc public let externalIdentifier: String?
         
         init(from ekEvent: EKEvent) {
             self.id = ekEvent.eventIdentifier
@@ -384,6 +385,7 @@ import Foundation
             self.location = ekEvent.location
             self.url = ekEvent.url?.absoluteString
             self.hasAlarms = ekEvent.hasAlarms
+            self.externalIdentifier = ekEvent.calendarItemExternalIdentifier
             
             // Convert availability to string
             switch ekEvent.availability {
@@ -416,6 +418,7 @@ import Foundation
         @objc public let startDate: Date?
         @objc public let priority: Int
         @objc public let hasAlarms: Bool
+        @objc public let externalIdentifier: String?
         
         init(from ekReminder: EKReminder) {
             self.id = ekReminder.calendarItemIdentifier
@@ -425,6 +428,7 @@ import Foundation
             self.calendarTitle = ekReminder.calendar.title
             self.completed = ekReminder.isCompleted
             self.completionDate = ekReminder.completionDate
+            self.externalIdentifier = ekReminder.calendarItemExternalIdentifier
             
             // Convert date components to Date objects if available
             if let dueDateComponents = ekReminder.dueDateComponents {
@@ -523,6 +527,63 @@ import Foundation
         
         // Create and return the Event object
         return Event(from: ekEvent)
+    }
+    
+    @objc public func getCalendarItem(identifier: String) -> [String: Any]? {
+        // Try to get the calendar item using calendarItem(withIdentifier:)
+        guard let ekCalendarItem = eventStore.calendarItem(withIdentifier: identifier) else {
+            // If the calendar item doesn't exist, return nil
+            return nil
+        }
+        
+        // Determine type and create appropriate wrapper
+        if let ekEvent = ekCalendarItem as? EKEvent {
+            let event = Event(from: ekEvent)
+            return [
+                "type": "event",
+                "item": event
+            ]
+        } else if let ekReminder = ekCalendarItem as? EKReminder {
+            let reminder = Reminder(from: ekReminder)
+            return [
+                "type": "reminder",
+                "item": reminder
+            ]
+        }
+        
+        // Unknown item type
+        return nil
+    }
+    
+    @objc public func getCalendarItemsWithExternalIdentifier(_ externalIdentifier: String) -> NSArray? {
+        // Try to retrieve calendar items with the external identifier
+        let items = eventStore.calendarItems(withExternalIdentifier: externalIdentifier)
+        
+        // If no items found, return nil
+        if items.isEmpty {
+            return nil
+        }
+        
+        // Convert the found items to dictionary representations
+        let result = NSMutableArray()
+        
+        for item in items {
+            if let ekEvent = item as? EKEvent {
+                let event = Event(from: ekEvent)
+                result.add([
+                    "type": "event",
+                    "item": event
+                ])
+            } else if let ekReminder = item as? EKReminder {
+                let reminder = Reminder(from: ekReminder)
+                result.add([
+                    "type": "reminder",
+                    "item": reminder
+                ])
+            }
+        }
+        
+        return result.count > 0 ? result : nil
     }
     
     @objc public func getEventsWithPredicate(predicate: Predicate) -> NSArray {

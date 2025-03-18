@@ -112,6 +112,8 @@ export interface Event {
   hasAlarms: boolean;
   /** Availability during the event (free, busy, tentative, unavailable) */
   availability: 'free' | 'busy' | 'tentative' | 'unavailable' | 'unknown';
+  /** External identifier for the event, useful for external sync services */
+  externalIdentifier: string | null;
 }
 
 /**
@@ -141,6 +143,8 @@ export interface Reminder {
   priority: number;
   /** Whether the reminder has alarms */
   hasAlarms: boolean;
+  /** External identifier for the reminder, useful for external sync services */
+  externalIdentifier: string | null;
 }
 
 /**
@@ -483,4 +487,64 @@ export function getRemindersWithPredicate(predicate: Predicate): Promise<Reminde
  */
 export function getEvent(identifier: string): Event | null {
   return nativeModule.getEvent(identifier);
+}
+
+/**
+ * Calendar item result containing either an event or a reminder
+ */
+export interface CalendarItemResult {
+  /** Type of the calendar item */
+  type: 'event' | 'reminder';
+  /** The calendar item (either an Event or Reminder) */
+  item: Event | Reminder;
+}
+
+/**
+ * Get a calendar item (event or reminder) by its identifier
+ * @param identifier - The unique identifier of the calendar item to retrieve
+ * @returns An object containing the type and the item if found, or null if not found
+ * 
+ * @example
+ * // Get a calendar item by its identifier
+ * const result = getCalendarItem('123456789');
+ * if (result) {
+ *   if (result.type === 'event') {
+ *     const event = result.item as Event;
+ *     console.log(`Found event: ${event.title}`);
+ *   } else {
+ *     const reminder = result.item as Reminder;
+ *     console.log(`Found reminder: ${reminder.title}`);
+ *   }
+ * } else {
+ *   console.log('Calendar item not found');
+ * }
+ */
+export function getCalendarItem(identifier: string): CalendarItemResult | null {
+  return nativeModule.getCalendarItem(identifier);
+}
+
+/**
+ * Get calendar items that match an external identifier
+ * @param externalIdentifier - The external identifier to search for
+ * @returns An array of objects containing the type and the item if found, or null if not found
+ * 
+ * @example
+ * // Get calendar items with a specific external identifier
+ * const items = getCalendarItemsWithExternalIdentifier('external-123456');
+ * if (items && items.length > 0) {
+ *   items.forEach(result => {
+ *     if (result.type === 'event') {
+ *       const event = result.item as Event;
+ *       console.log(`Found event: ${event.title}`);
+ *     } else {
+ *       const reminder = result.item as Reminder;
+ *       console.log(`Found reminder: ${reminder.title}`);
+ *     }
+ *   });
+ * } else {
+ *   console.log('No calendar items found with that external identifier');
+ * }
+ */
+export function getCalendarItemsWithExternalIdentifier(externalIdentifier: string): CalendarItemResult[] | null {
+  return nativeModule.getCalendarItemsWithExternalIdentifier(externalIdentifier);
 } 
