@@ -628,18 +628,21 @@ Napi::Object EventToJSObject(const Napi::CallbackInfo& info, Event *event) {
     jsObject.Set("id", Napi::String::New(env, [event.id UTF8String]));
     jsObject.Set("title", Napi::String::New(env, [event.title UTF8String]));
     
+    // Handle nullable fields
     if (event.notes) {
         jsObject.Set("notes", Napi::String::New(env, [event.notes UTF8String]));
     } else {
         jsObject.Set("notes", env.Null());
     }
     
+    // Convert dates to JavaScript Date objects
     jsObject.Set("startDate", Napi::Date::New(env, event.startDate.timeIntervalSince1970 * 1000));
     jsObject.Set("endDate", Napi::Date::New(env, event.endDate.timeIntervalSince1970 * 1000));
     jsObject.Set("isAllDay", Napi::Boolean::New(env, event.isAllDay));
     jsObject.Set("calendarId", Napi::String::New(env, [event.calendarId UTF8String]));
     jsObject.Set("calendarTitle", Napi::String::New(env, [event.calendarTitle UTF8String]));
     
+    // Handle nullable fields
     if (event.location) {
         jsObject.Set("location", Napi::String::New(env, [event.location UTF8String]));
     } else {
@@ -656,6 +659,48 @@ Napi::Object EventToJSObject(const Napi::CallbackInfo& info, Event *event) {
     jsObject.Set("availability", Napi::String::New(env, [event.availability UTF8String]));
     
     return jsObject;
+}
+
+// GetEvent function
+Napi::Value GetEvent(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Check if identifier parameter is provided
+    if (info.Length() < 1 || !info[0].IsString()) {
+        Napi::Error::New(env, "Event identifier is required and must be a string.")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    // Get the identifier parameter
+    std::string identifier = info[0].As<Napi::String>().Utf8Value();
+    
+    // Create an NSString from the identifier
+    NSString* identifierString = [NSString stringWithUTF8String:identifier.c_str()];
+    
+    // Use a try-catch block to catch any Objective-C exceptions
+    @try {
+        EventKitBridge *bridge = GetSharedBridge();
+        Event *event = [bridge getEventWithIdentifier:identifierString];
+        
+        // Return null if event is not found
+        if (event == nil) {
+            return env.Null();
+        }
+        
+        return EventToJSObject(info, event);
+    } @catch (NSException *exception) {
+        // Create a more helpful error message
+        std::string errorMessage = "Error retrieving event: ";
+        if ([[exception name] isEqualToString:@"NSUnknownKeyException"]) {
+            errorMessage = "The identifier provided belongs to a reminder, not an event. Use getReminder method for reminders.";
+        } else {
+            errorMessage += [[exception reason] UTF8String];
+        }
+        
+        Napi::Error::New(env, errorMessage).ThrowAsJavaScriptException();
+        return env.Null();
+    }
 }
 
 // Helper to convert Reminder object to JS object
@@ -1087,6 +1132,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("createCompletedReminderPredicate", Napi::Function::New(env, CreateCompletedReminderPredicate));
     exports.Set("getEventsWithPredicate", Napi::Function::New(env, GetEventsWithPredicate));
     exports.Set("getRemindersWithPredicate", Napi::Function::New(env, GetRemindersWithPredicate));
+    exports.Set("getEvent", Napi::Function::New(env, GetEvent));
     return exports;
 }
 

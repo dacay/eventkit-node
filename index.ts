@@ -465,4 +465,22 @@ export function getRemindersWithPredicate(predicate: Predicate): Promise<Reminde
   }
   
   return nativeModule.getRemindersWithPredicate(predicate);
+}
+
+/**
+ * Get an event by its identifier
+ * @param identifier - The unique identifier of the event to retrieve
+ * @returns The Event object if found, or null if not found
+ * 
+ * @example
+ * // Get an event by its identifier
+ * const event = getEvent('123456789');
+ * if (event) {
+ *   console.log(`Found event: ${event.title}`);
+ * } else {
+ *   console.log('Event not found');
+ * }
+ */
+export function getEvent(identifier: string): Event | null {
+  return nativeModule.getEvent(identifier);
 } 

@@ -514,6 +514,17 @@ import Foundation
     
     // MARK: - Query Methods
     
+    @objc public func getEvent(identifier: String) -> Event? {
+        // Check if the identifier is for a valid event
+        guard let ekEvent = eventStore.event(withIdentifier: identifier) else {
+            // If the object doesn't exist or is not an event (e.g., it's a reminder), return nil
+            return nil
+        }
+        
+        // Create and return the Event object
+        return Event(from: ekEvent)
+    }
+    
     @objc public func getEventsWithPredicate(predicate: Predicate) -> NSArray {
         guard predicate.predicateType == "event" else {
             return NSArray() // Return empty array if predicate type doesn't match
