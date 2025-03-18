@@ -1,0 +1,6 @@
+---
+description: Rule about memory bank
+globs: 
+alwaysApply: true
+---
+- Use the memory bank project "eventkit-node"
