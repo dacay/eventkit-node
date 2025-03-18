@@ -21,7 +21,10 @@ const {
   createIncompleteReminderPredicate,
   createCompletedReminderPredicate,
   getEventsWithPredicate,
-  getRemindersWithPredicate
+  getRemindersWithPredicate,
+  getEvent,
+  getCalendarItem,
+  getCalendarItemsWithExternalIdentifier
 } = require('eventkit-node');
 // or
 import { 
@@ -38,7 +41,10 @@ import {
   createIncompleteReminderPredicate,
   createCompletedReminderPredicate,
   getEventsWithPredicate,
-  getRemindersWithPredicate
+  getRemindersWithPredicate,
+  getEvent,
+  getCalendarItem,
+  getCalendarItemsWithExternalIdentifier
 } from 'eventkit-node';
 ```
 
@@ -310,6 +316,80 @@ const incompleteReminders = await getRemindersWithPredicate(incompletePredicate)
 console.log(incompleteReminders);
 ```
 
+### `getEvent(identifier: string): Event | null`
+
+Gets an event by its unique identifier.
+
+**Parameters:**
+- `identifier`: The unique identifier of the event to retrieve
+
+**Returns:** The Event object if found, or null if not found
+
+**Example:**
+```javascript
+// Get an event by its identifier
+const event = getEvent('123456789');
+if (event) {
+  console.log(`Found event: ${event.title}`);
+} else {
+  console.log('Event not found');
+}
+```
+
+### `getCalendarItem(identifier: string): CalendarItemResult | null`
+
+Gets a calendar item (event or reminder) by its identifier.
+
+**Parameters:**
+- `identifier`: The unique identifier of the calendar item to retrieve
+
+**Returns:** An object containing the type and the item if found, or null if not found
+
+**Example:**
+```javascript
+// Get a calendar item by its identifier
+const result = getCalendarItem('123456789');
+if (result) {
+  if (result.type === 'event') {
+    const event = result.item;
+    console.log(`Found event: ${event.title}`);
+  } else {
+    const reminder = result.item;
+    console.log(`Found reminder: ${reminder.title}`);
+  }
+} else {
+  console.log('Calendar item not found');
+}
+```
+
+### `getCalendarItemsWithExternalIdentifier(externalIdentifier: string): CalendarItemResult[] | null`
+
+Gets calendar items that match an external identifier.
+
+**Parameters:**
+- `externalIdentifier`: The external identifier to search for
+
+**Returns:** An array of objects containing the type and the item if found, or null if not found
+
+**Example:**
+```javascript
+// Get calendar items with a specific external identifier
+const items = getCalendarItemsWithExternalIdentifier('external-123456');
+if (items && items.length > 0) {
+  items.forEach(result => {
+    if (result.type === 'event') {
+      const event = result.item;
+      console.log(`Found event: ${event.title}`);
+    } else {
+      const reminder = result.item;
+      console.log(`Found reminder: ${reminder.title}`);
+    }
+  });
+} else {
+  console.log('No calendar items found with that external identifier');
+}
+```
+
 ## Types
 
 ### `EntityType`
@@ -411,6 +491,8 @@ interface Event {
   hasAlarms: boolean;
   /** Availability during the event (free, busy, tentative, unavailable) */
   availability: string;
+  /** External identifier for the event, useful for external sync services */
+  externalIdentifier: string | null;
 }
 ```
 
@@ -440,23 +522,7 @@ interface Reminder {
   priority: number;
   /** Whether the reminder has alarms */
   hasAlarms: boolean;
+  /** External identifier for the reminder, useful for external sync services */
+  externalIdentifier: string | null;
 }
 ```
-
-### `Predicate`
-
-```typescript
-interface Predicate {
-  /** Type of the predicate (event, reminder, incompleteReminder, completedReminder) */
-  type: string;
-}
-```
-
-## API Behavior Note
-
-This library follows EventKit's native behavior regarding synchronous and asynchronous operations:
-
-- `getEventsWithPredicate()` is **synchronous** and returns events directly (matching EventKit's `events(matching:)`)
-- `getRemindersWithPredicate()` is **asynchronous** and returns a Promise (matching EventKit's `fetchReminders(matching:completion:)`)
-
-This design choice ensures the API accurately reflects the underlying EventKit implementation.

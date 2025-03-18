@@ -201,6 +201,9 @@ The addon provides a clean, JavaScript-friendly API for working with calendars a
 - `createCompletedReminderPredicate(startDate?, endDate?, calendarIds?)` - Create a predicate for querying completed reminders
 - `getEventsWithPredicate(predicate)` - Get events matching a predicate
 - `getRemindersWithPredicate(predicate)` - Get reminders matching a predicate (returns a Promise)
+- `getEvent(identifier)` - Get an event by its unique identifier
+- `getCalendarItem(identifier)` - Get a calendar item (event or reminder) by its identifier
+- `getCalendarItemsWithExternalIdentifier(externalIdentifier)` - Get calendar items with a specific external identifier
 
 ## Documentation
 
