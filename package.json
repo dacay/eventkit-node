@@ -2,7 +2,7 @@
   "name": "eventkit-node",
   "author": "Deniz Acay",
   "license": "MPL-2.0",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -21,10 +21,19 @@
   },
   "files": [
     "dist",
-    "build/Release/eventkit.node",
+    "build/Release",
+    "binding.gyp",
+    "node-addon",
+    "Package.swift",
+    "libEventKitBridge.a",
+    "LICENSE",
     "README.md"
   ],
   "engines": {
     "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dacay/eventkit-node.git"
   }
 }
