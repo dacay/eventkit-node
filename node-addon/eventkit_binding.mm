@@ -1250,6 +1250,100 @@ Napi::Value GetCalendarItemsWithExternalIdentifier(const Napi::CallbackInfo& inf
     }
 }
 
+// RemoveEvent function
+Napi::Value RemoveEvent(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Check parameters
+    if (info.Length() < 1 || !info[0].IsString()) {
+        Napi::Error::New(env, "Event identifier is required and must be a string.")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    // Get the identifier parameter
+    std::string identifier = info[0].As<Napi::String>().Utf8Value();
+    
+    // Get the span parameter (optional, default to "thisEvent")
+    std::string span = "thisEvent";
+    if (info.Length() >= 2 && info[1].IsString()) {
+        span = info[1].As<Napi::String>().Utf8Value();
+        
+        // Validate span parameter
+        if (span != "thisEvent" && span != "futureEvents") {
+            Napi::Error::New(env, "Span must be either 'thisEvent' or 'futureEvents'.")
+                .ThrowAsJavaScriptException();
+            return env.Null();
+        }
+    }
+    
+    // Get the commit parameter (optional, default to true)
+    bool commit = true;
+    if (info.Length() >= 3 && info[2].IsBoolean()) {
+        commit = info[2].As<Napi::Boolean>().Value();
+    }
+    
+    // Create NSString from the identifier
+    NSString* identifierString = [NSString stringWithUTF8String:identifier.c_str()];
+    
+    // Create NSString from the span
+    NSString* spanString = [NSString stringWithUTF8String:span.c_str()];
+    
+    // Use a try-catch block to catch any Objective-C exceptions
+    @try {
+        EventKitBridge *bridge = GetSharedBridge();
+        bool success = [bridge removeEventWithIdentifier:identifierString span:spanString commit:commit];
+        
+        return Napi::Boolean::New(env, success);
+    } @catch (NSException *exception) {
+        // Create a helpful error message
+        std::string errorMessage = "Error removing event: ";
+        errorMessage += [[exception reason] UTF8String];
+        
+        Napi::Error::New(env, errorMessage).ThrowAsJavaScriptException();
+        return env.Null();
+    }
+}
+
+// RemoveReminder function
+Napi::Value RemoveReminder(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Check parameters
+    if (info.Length() < 1 || !info[0].IsString()) {
+        Napi::Error::New(env, "Reminder identifier is required and must be a string.")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    // Get the identifier parameter
+    std::string identifier = info[0].As<Napi::String>().Utf8Value();
+    
+    // Get the commit parameter (optional, default to true)
+    bool commit = true;
+    if (info.Length() >= 2 && info[1].IsBoolean()) {
+        commit = info[1].As<Napi::Boolean>().Value();
+    }
+    
+    // Create NSString from the identifier
+    NSString* identifierString = [NSString stringWithUTF8String:identifier.c_str()];
+    
+    // Use a try-catch block to catch any Objective-C exceptions
+    @try {
+        EventKitBridge *bridge = GetSharedBridge();
+        bool success = [bridge removeReminderWithIdentifier:identifierString commit:commit];
+        
+        return Napi::Boolean::New(env, success);
+    } @catch (NSException *exception) {
+        // Create a helpful error message
+        std::string errorMessage = "Error removing reminder: ";
+        errorMessage += [[exception reason] UTF8String];
+        
+        Napi::Error::New(env, errorMessage).ThrowAsJavaScriptException();
+        return env.Null();
+    }
+}
+
 // Initialize the module
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getCalendars", Napi::Function::New(env, GetCalendars));
@@ -1276,6 +1370,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getEvent", Napi::Function::New(env, GetEvent));
     exports.Set("getCalendarItem", Napi::Function::New(env, GetCalendarItem));
     exports.Set("getCalendarItemsWithExternalIdentifier", Napi::Function::New(env, GetCalendarItemsWithExternalIdentifier));
+    exports.Set("removeEvent", Napi::Function::New(env, RemoveEvent));
+    exports.Set("removeReminder", Napi::Function::New(env, RemoveReminder));
     return exports;
 }
 

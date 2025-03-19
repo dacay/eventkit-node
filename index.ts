@@ -547,4 +547,49 @@ export function getCalendarItem(identifier: string): CalendarItemResult | null {
  */
 export function getCalendarItemsWithExternalIdentifier(externalIdentifier: string): CalendarItemResult[] | null {
   return nativeModule.getCalendarItemsWithExternalIdentifier(externalIdentifier);
+}
+
+/**
+ * Options for handling recurring events when removing events
+ * @see https://developer.apple.com/documentation/eventkit/ekspan
+ */
+export type SpanType = 'thisEvent' | 'futureEvents';
+
+/**
+ * Remove an event by its identifier
+ * @param identifier - The unique identifier of the event to remove
+ * @param span - How to handle recurring events: 'thisEvent' for just this occurrence, 'futureEvents' for this and all future occurrences (default: 'thisEvent')
+ * @param commit - Whether to commit the change immediately (default: true)
+ * @returns A promise that resolves to true if the event was successfully removed, false otherwise
+ * 
+ * @example
+ * // Remove a single event
+ * const success = await removeEvent('event-id');
+ * 
+ * @example
+ * // Remove this and all future occurrences of a recurring event
+ * const success = await removeEvent('event-id', 'futureEvents');
+ */
+export function removeEvent(identifier: string, span: SpanType = 'thisEvent', commit: boolean = true): Promise<boolean> {
+  return nativeModule.removeEvent(identifier, span, commit);
+}
+
+/**
+ * Remove a reminder by its identifier
+ * @param identifier - The unique identifier of the reminder to remove
+ * @param commit - Whether to commit the change immediately (default: true)
+ * @returns A promise that resolves to true if the reminder was successfully removed, false otherwise
+ * 
+ * @example
+ * // Remove a reminder
+ * const success = await removeReminder('reminder-id');
+ * 
+ * @example
+ * // Remove a reminder without committing changes immediately
+ * const success = await removeReminder('reminder-id', false);
+ * // Later, commit all pending changes
+ * await commit();
+ */
+export function removeReminder(identifier: string, commit: boolean = true): Promise<boolean> {
+  return nativeModule.removeReminder(identifier, commit);
 } 

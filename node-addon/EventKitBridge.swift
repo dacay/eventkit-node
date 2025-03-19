@@ -635,4 +635,50 @@ import Foundation
             }
         }
     }
+
+    // MARK: - Removal Methods
+    
+    @objc public func removeEvent(withIdentifier identifier: String, span: String, commit: Bool) -> Bool {
+        // Try to get the event
+        guard let event = eventStore.event(withIdentifier: identifier) else {
+            return false
+        }
+        
+        // Convert string span to EKSpan
+        var ekSpan: EKSpan
+        switch span {
+        case "thisEvent":
+            ekSpan = .thisEvent
+        case "futureEvents":
+            ekSpan = .futureEvents
+        default:
+            ekSpan = .thisEvent
+        }
+        
+        do {
+            // Remove the event
+            try eventStore.remove(event, span: ekSpan, commit: commit)
+            return true
+        } catch {
+            // If there was an error removing the event, return false
+            return false
+        }
+    }
+    
+    @objc public func removeReminder(withIdentifier identifier: String, commit: Bool) -> Bool {
+        // Try to get the reminder
+        guard let calendarItem = eventStore.calendarItem(withIdentifier: identifier),
+              let reminder = calendarItem as? EKReminder else {
+            return false
+        }
+        
+        do {
+            // Remove the reminder
+            try eventStore.remove(reminder, commit: commit)
+            return true
+        } catch {
+            // If there was an error removing the reminder, return false
+            return false
+        }
+    }
 } 
