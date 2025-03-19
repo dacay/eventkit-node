@@ -174,7 +174,7 @@ import Foundation
         return Calendar(from: ekCalendar)
     }
     
-    @objc public func saveCalendar(calendarData: NSDictionary, commit: Bool, completion: @escaping (Bool, String?) -> Void) {
+    @objc public func saveCalendar(calendarData: NSDictionary, commit: Bool) -> [String: Any]? {
         // Get the calendar ID if it exists (for updating an existing calendar)
         let calendarId = calendarData["id"] as? String
         
@@ -190,8 +190,7 @@ import Foundation
             
             // Check if the calendar supports the specified entity type
             if !existingCalendar.allowedEntityTypes.contains(entityType == .event ? .event : .reminder) {
-                completion(false, "This calendar does not support the specified entity type")
-                return
+                return ["success": false, "error": "This calendar does not support the specified entity type"]
             }
         } else {
             // Create a new calendar
@@ -202,18 +201,8 @@ import Foundation
                let source = eventStore.source(withIdentifier: sourceId) {
                 calendar.source = source
             } else {
-                // Use the default source if no source ID is provided
-                if let defaultSource = eventStore.defaultCalendarForNewEvents?.source {
-                    calendar.source = defaultSource
-                } else if let firstSource = eventStore.sources.first(where: { $0.sourceType == .local }) {
-                    calendar.source = firstSource
-                } else if let firstSource = eventStore.sources.first {
-                    calendar.source = firstSource
-                } else {
-                    // No sources available
-                    completion(false, "No calendar sources available")
-                    return
-                }
+                // No valid source ID provided
+                return ["success": false, "error": "A valid sourceId is required for new calendars"]
             }
         }
         
@@ -264,9 +253,9 @@ import Foundation
         // Save the calendar
         do {
             try eventStore.saveCalendar(calendar, commit: commit)
-            completion(true, calendar.calendarIdentifier)
+            return ["success": true, "id": calendar.calendarIdentifier]
         } catch {
-            completion(false, error.localizedDescription)
+            return ["success": false, "error": error.localizedDescription]
         }
     }
 
@@ -679,6 +668,164 @@ import Foundation
         } catch {
             // If there was an error removing the reminder, return false
             return false
+        }
+    }
+    
+    // MARK: - Save Methods
+    
+    @objc public func saveEvent(eventData: NSDictionary, span: String, commit: Bool) -> [String: Any]? {
+        // Get the event ID if it exists (for updating an existing event)
+        let eventId = eventData["id"] as? String
+        
+        // Create a new event or get an existing one
+        let event: EKEvent
+        if let eventId = eventId, let existingEvent = eventStore.event(withIdentifier: eventId) {
+            // Update existing event
+            event = existingEvent
+        } else {
+            // Create a new event
+            event = EKEvent(eventStore: eventStore)
+            
+            // For new events, we need to set a calendar
+            if let calendarId = eventData["calendarId"] as? String, 
+               let calendar = eventStore.calendar(withIdentifier: calendarId) {
+                event.calendar = calendar
+            } else {
+                // No valid calendar ID provided
+                return ["success": false, "error": "A valid calendarId is required for new events"]
+            }
+        }
+        
+        // Update event properties
+        if let title = eventData["title"] as? String {
+            event.title = title
+        }
+        
+        if let notes = eventData["notes"] as? String {
+            event.notes = notes
+        }
+        
+        if let startDate = eventData["startDate"] as? Date {
+            event.startDate = startDate
+        }
+        
+        if let endDate = eventData["endDate"] as? Date {
+            event.endDate = endDate
+        }
+        
+        if let isAllDay = eventData["isAllDay"] as? Bool {
+            event.isAllDay = isAllDay
+        }
+        
+        if let location = eventData["location"] as? String {
+            event.location = location
+        }
+        
+        if let urlString = eventData["url"] as? String, let url = URL(string: urlString) {
+            event.url = url
+        }
+        
+        if let availabilityString = eventData["availability"] as? String {
+            switch availabilityString.lowercased() {
+            case "free":
+                event.availability = .free
+            case "busy":
+                event.availability = .busy
+            case "tentative":
+                event.availability = .tentative
+            case "unavailable":
+                event.availability = .unavailable
+            default:
+                break
+            }
+        }
+        
+        // Convert string span to EKSpan
+        var ekSpan: EKSpan
+        switch span {
+        case "thisEvent":
+            ekSpan = .thisEvent
+        case "futureEvents":
+            ekSpan = .futureEvents
+        default:
+            ekSpan = .thisEvent
+        }
+        
+        // Save the event
+        do {
+            try eventStore.save(event, span: ekSpan, commit: commit)
+            return ["success": true, "id": event.eventIdentifier!]
+        } catch {
+            return ["success": false, "error": error.localizedDescription]
+        }
+    }
+    
+    @objc public func saveReminder(reminderData: NSDictionary, commit: Bool) -> [String: Any]? {
+        // Get the reminder ID if it exists (for updating an existing reminder)
+        let reminderId = reminderData["id"] as? String
+        
+        // Create a new reminder or get an existing one
+        let reminder: EKReminder
+        if let reminderId = reminderId, 
+           let calendarItem = eventStore.calendarItem(withIdentifier: reminderId),
+           let existingReminder = calendarItem as? EKReminder {
+            // Update existing reminder
+            reminder = existingReminder
+        } else {
+            // Create a new reminder
+            reminder = EKReminder(eventStore: eventStore)
+            
+            // For new reminders, we need to set a calendar
+            if let calendarId = reminderData["calendarId"] as? String, 
+               let calendar = eventStore.calendar(withIdentifier: calendarId) {
+                reminder.calendar = calendar
+            } else {
+                // No valid calendar ID provided
+                return ["success": false, "error": "A valid calendarId is required for new reminders"]
+            }
+        }
+        
+        // Update reminder properties
+        if let title = reminderData["title"] as? String {
+            reminder.title = title
+        }
+        
+        if let notes = reminderData["notes"] as? String {
+            reminder.notes = notes
+        }
+        
+        if let completed = reminderData["completed"] as? Bool {
+            reminder.isCompleted = completed
+            
+            if completed {
+                reminder.completionDate = Date()
+            } else {
+                reminder.completionDate = nil
+            }
+        }
+        
+        if let priority = reminderData["priority"] as? Int {
+            reminder.priority = priority
+        }
+        
+        // Handle due date if provided
+        if let dueDate = reminderData["dueDate"] as? Date {
+            let dateComponents = Foundation.Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: dueDate)
+            reminder.dueDateComponents = dateComponents
+        }
+        
+        // Handle start date if provided
+        if let startDate = reminderData["startDate"] as? Date {
+            let dateComponents = Foundation.Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: startDate)
+            reminder.startDateComponents = dateComponents
+        }
+        
+        // Save the reminder
+        do {
+            try eventStore.save(reminder, commit: commit)
+            return ["success": true, "id": reminder.calendarItemIdentifier]
+        } catch {
+            return ["success": false, "error": error.localizedDescription]
         }
     }
 } 

@@ -592,4 +592,109 @@ export function removeEvent(identifier: string, span: SpanType = 'thisEvent', co
  */
 export function removeReminder(identifier: string, commit: boolean = true): Promise<boolean> {
   return nativeModule.removeReminder(identifier, commit);
+}
+
+/**
+ * Data for creating or updating an event
+ */
+export interface EventData {
+  /** Unique identifier for the event (omit for new events) */
+  id?: string;
+  /** Title of the event */
+  title: string;
+  /** Notes or description of the event */
+  notes?: string;
+  /** Start date of the event */
+  startDate: Date;
+  /** End date of the event */
+  endDate: Date;
+  /** Whether the event is an all-day event */
+  isAllDay?: boolean;
+  /** Calendar identifier the event belongs to (required for new events, optional for updates) */
+  calendarId?: string;
+  /** Location of the event */
+  location?: string;
+  /** URL associated with the event */
+  url?: string;
+  /** Availability during the event (free, busy, tentative, unavailable) */
+  availability?: 'free' | 'busy' | 'tentative' | 'unavailable';
+}
+
+/**
+ * Save an event (create new or update existing)
+ * @param eventData - The event data to save
+ * @param span - How to handle recurring events when saving: 'thisEvent' for just this occurrence, 'futureEvents' for this and all future occurrences (default: 'thisEvent')
+ * @param commit - Whether to commit the changes immediately (default: true)
+ * @returns A promise that resolves to the event identifier
+ * @throws Error if the event data is invalid or the operation fails
+ * 
+ * @example
+ * // Create a new event
+ * const eventId = await saveEvent({
+ *   title: 'Team Meeting',
+ *   startDate: new Date('2023-04-20T10:00:00'),
+ *   endDate: new Date('2023-04-20T11:00:00'),
+ *   notes: 'Discuss project status',
+ *   location: 'Conference Room A'
+ * });
+ * 
+ * @example
+ * // Update an existing event
+ * const eventId = await saveEvent({
+ *   id: 'existing-event-id',
+ *   title: 'Updated Meeting Title',
+ *   startDate: new Date('2023-04-20T10:00:00'),
+ *   endDate: new Date('2023-04-20T11:30:00') // Changed end time
+ * });
+ */
+export function saveEvent(eventData: EventData, span: SpanType = 'thisEvent', commit: boolean = true): Promise<string> {
+  return nativeModule.saveEvent(eventData, span, commit);
+}
+
+/**
+ * Data for creating or updating a reminder
+ */
+export interface ReminderData {
+  /** Unique identifier for the reminder (omit for new reminders) */
+  id?: string;
+  /** Title of the reminder */
+  title: string;
+  /** Notes or description of the reminder */
+  notes?: string;
+  /** Calendar identifier the reminder belongs to (required for new reminders, optional for updates) */
+  calendarId?: string;
+  /** Whether the reminder is completed */
+  completed?: boolean;
+  /** Due date of the reminder */
+  dueDate?: Date;
+  /** Start date of the reminder */
+  startDate?: Date;
+  /** Priority of the reminder (0-9, where 0 is no priority) */
+  priority?: number;
+}
+
+/**
+ * Save a reminder (create new or update existing)
+ * @param reminderData - The reminder data to save
+ * @param commit - Whether to commit the changes immediately (default: true)
+ * @returns A promise that resolves to the reminder identifier
+ * @throws Error if the reminder data is invalid or the operation fails
+ * 
+ * @example
+ * // Create a new reminder
+ * const reminderId = await saveReminder({
+ *   title: 'Buy groceries',
+ *   notes: 'Milk, eggs, bread',
+ *   dueDate: new Date('2023-04-21T18:00:00')
+ * });
+ * 
+ * @example
+ * // Mark an existing reminder as completed
+ * const reminderId = await saveReminder({
+ *   id: 'existing-reminder-id',
+ *   completed: true
+ * });
+ */
+export function saveReminder(reminderData: ReminderData, commit: boolean = true): Promise<string> {
+  return nativeModule.saveReminder(reminderData, commit);
 } 

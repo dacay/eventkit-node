@@ -457,12 +457,37 @@ Napi::Value SaveCalendar(const Napi::CallbackInfo& info) {
     // Create the EventKitBridge
     EventKitBridge *bridge = GetSharedBridge();
     
-    // Save the calendar
-    [bridge saveCalendarWithCalendarData:calendarDict commit:commit completion:^(BOOL success, NSString * _Nullable calendarIdOrError) {
-        std::string resultString = calendarIdOrError ? [calendarIdOrError UTF8String] : "";
-        worker->SetResult(success, resultString);
-        worker->Queue();
-    }];
+    // Use a try-catch block to catch any Objective-C exceptions
+    @try {
+        // Save the calendar
+        NSDictionary *result = [bridge saveCalendarWithCalendarData:calendarDict commit:commit];
+        
+        if (result == nil) {
+            deferred.Reject(Napi::Error::New(env, "Failed to save calendar. Default source not available.").Value());
+            return deferred.Promise();
+        }
+        
+        // Check if the operation was successful
+        NSNumber *success = result[@"success"];
+        if ([success boolValue]) {
+            // If successful, set the calendar ID
+            NSString *calendarId = result[@"id"];
+            worker->SetResult(true, [calendarId UTF8String]);
+        } else {
+            // If failed, set the error message
+            NSString *errorMessage = result[@"error"] ?: @"Unknown error saving calendar";
+            worker->SetResult(false, [errorMessage UTF8String]);
+        }
+    } @catch (NSException *exception) {
+        // Create a helpful error message
+        std::string errorMessage = "Error saving calendar: ";
+        errorMessage += [[exception reason] UTF8String];
+        
+        worker->SetResult(false, errorMessage);
+    }
+    
+    // Queue the worker
+    worker->Queue();
     
     // Return the promise
     return deferred.Promise();
@@ -968,13 +993,12 @@ Napi::Value GetEventsWithPredicate(const Napi::CallbackInfo& info) {
 class RemindersFetchWorker : public Napi::AsyncWorker {
 private:
     Napi::Promise::Deferred deferred_;
-    Predicate *predicate_;
     NSArray<Reminder *> *reminders_;
     Napi::Reference<Napi::Object> predicateRef_; // Add a reference to keep the JS object alive
 
 public:
-    RemindersFetchWorker(Napi::Promise::Deferred deferred, Predicate *predicate, Napi::Object predicateObj)
-        : Napi::AsyncWorker(deferred.Env()), deferred_(deferred), predicate_(predicate), reminders_(nil) {
+    RemindersFetchWorker(Napi::Promise::Deferred deferred, Napi::Object predicateObj)
+        : Napi::AsyncWorker(deferred.Env()), deferred_(deferred), reminders_(nil) {
         // Create a reference to the predicate object to keep it alive during the async operation
         predicateRef_ = Napi::Persistent(predicateObj);
     }
@@ -1111,7 +1135,7 @@ Napi::Value GetRemindersWithPredicate(const Napi::CallbackInfo& info) {
     Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
     
     // Create a worker to handle the async operation, passing the predicate object
-    RemindersFetchWorker* worker = new RemindersFetchWorker(deferred, predicate, predicateObj);
+    RemindersFetchWorker* worker = new RemindersFetchWorker(deferred, predicateObj);
     
     // Call the Swift method to fetch reminders
     EventKitBridge *bridge = GetSharedBridge();
@@ -1344,6 +1368,363 @@ Napi::Value RemoveReminder(const Napi::CallbackInfo& info) {
     }
 }
 
+// Class to handle the save event operation
+class SaveEventWorker : public Napi::AsyncWorker {
+public:
+    SaveEventWorker(const Napi::Promise::Deferred& deferred)
+        : Napi::AsyncWorker(Napi::Function::New(deferred.Env(), [](const Napi::CallbackInfo& info) { return info.Env().Undefined(); })),
+          deferred_(deferred), success_(false), eventId_("") {}
+    
+    // Execute is called on a worker thread
+    void Execute() override {
+        // This is intentionally left empty as we're not doing any work here
+        // The actual work is done in the Swift code
+    }
+    
+    // OnOK is called on the main thread when Execute completes
+    void OnOK() override {
+        Napi::HandleScope scope(Env());
+        
+        if (success_) {
+            // If successful, return the event ID
+            deferred_.Resolve(Napi::String::New(Env(), eventId_));
+        } else {
+            // If failed, reject with the error message
+            deferred_.Reject(Napi::Error::New(Env(), errorMessage_).Value());
+        }
+    }
+    
+    // OnError is called on the main thread if Execute throws
+    void OnError(const Napi::Error& error) override {
+        Napi::HandleScope scope(Env());
+        deferred_.Reject(error.Value());
+    }
+    
+    // Method to set the result values
+    void SetResult(bool success, const std::string& eventIdOrError) {
+        success_ = success;
+        if (success) {
+            eventId_ = eventIdOrError;
+        } else {
+            errorMessage_ = eventIdOrError;
+        }
+    }
+    
+private:
+    Napi::Promise::Deferred deferred_;
+    bool success_;
+    std::string eventId_;
+    std::string errorMessage_;
+};
+
+// Class to handle the save reminder operation
+class SaveReminderWorker : public Napi::AsyncWorker {
+public:
+    SaveReminderWorker(const Napi::Promise::Deferred& deferred)
+        : Napi::AsyncWorker(Napi::Function::New(deferred.Env(), [](const Napi::CallbackInfo& info) { return info.Env().Undefined(); })),
+          deferred_(deferred), success_(false), reminderId_("") {}
+    
+    // Execute is called on a worker thread
+    void Execute() override {
+        // This is intentionally left empty as we're not doing any work here
+        // The actual work is done in the Swift code
+    }
+    
+    // OnOK is called on the main thread when Execute completes
+    void OnOK() override {
+        Napi::HandleScope scope(Env());
+        
+        if (success_) {
+            // If successful, return the reminder ID
+            deferred_.Resolve(Napi::String::New(Env(), reminderId_));
+        } else {
+            // If failed, reject with the error message
+            deferred_.Reject(Napi::Error::New(Env(), errorMessage_).Value());
+        }
+    }
+    
+    // OnError is called on the main thread if Execute throws
+    void OnError(const Napi::Error& error) override {
+        Napi::HandleScope scope(Env());
+        deferred_.Reject(error.Value());
+    }
+    
+    // Method to set the result values
+    void SetResult(bool success, const std::string& reminderIdOrError) {
+        success_ = success;
+        if (success) {
+            reminderId_ = reminderIdOrError;
+        } else {
+            errorMessage_ = reminderIdOrError;
+        }
+    }
+    
+private:
+    Napi::Promise::Deferred deferred_;
+    bool success_;
+    std::string reminderId_;
+    std::string errorMessage_;
+};
+
+// SaveEvent function
+Napi::Value SaveEvent(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Create a promise
+    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
+    
+    // Check parameters
+    if (info.Length() < 1 || !info[0].IsObject()) {
+        deferred.Reject(Napi::Error::New(env, "Event data is required and must be an object.").Value());
+        return deferred.Promise();
+    }
+    
+    // Get the event data parameter
+    Napi::Object eventData = info[0].As<Napi::Object>();
+    
+    // Get the span parameter (optional, default to "thisEvent")
+    std::string span = "thisEvent";
+    if (info.Length() >= 2 && info[1].IsString()) {
+        span = info[1].As<Napi::String>().Utf8Value();
+        
+        // Validate span parameter
+        if (span != "thisEvent" && span != "futureEvents") {
+            deferred.Reject(Napi::Error::New(env, "Span must be either 'thisEvent' or 'futureEvents'.").Value());
+            return deferred.Promise();
+        }
+    }
+    
+    // Get the commit parameter (optional, default to true)
+    bool commit = true;
+    if (info.Length() >= 3 && info[2].IsBoolean()) {
+        commit = info[2].As<Napi::Boolean>().Value();
+    }
+    
+    // Convert JavaScript object to NSDictionary
+    NSMutableDictionary *eventDict = [NSMutableDictionary dictionary];
+    
+    // Process event properties
+    
+    // id (optional, for updating existing events)
+    if (eventData.Has("id") && eventData.Get("id").IsString()) {
+        std::string id = eventData.Get("id").As<Napi::String>().Utf8Value();
+        eventDict[@"id"] = [NSString stringWithUTF8String:id.c_str()];
+    }
+    
+    // title
+    if (eventData.Has("title") && eventData.Get("title").IsString()) {
+        std::string title = eventData.Get("title").As<Napi::String>().Utf8Value();
+        eventDict[@"title"] = [NSString stringWithUTF8String:title.c_str()];
+    }
+    
+    // notes
+    if (eventData.Has("notes") && eventData.Get("notes").IsString()) {
+        std::string notes = eventData.Get("notes").As<Napi::String>().Utf8Value();
+        eventDict[@"notes"] = [NSString stringWithUTF8String:notes.c_str()];
+    }
+    
+    // calendarId
+    if (eventData.Has("calendarId") && eventData.Get("calendarId").IsString()) {
+        std::string calendarId = eventData.Get("calendarId").As<Napi::String>().Utf8Value();
+        eventDict[@"calendarId"] = [NSString stringWithUTF8String:calendarId.c_str()];
+    }
+    
+    // startDate
+    if (eventData.Has("startDate") && eventData.Get("startDate").IsDate()) {
+        double timestamp = eventData.Get("startDate").As<Napi::Date>().ValueOf();
+        NSDate *startDate = [NSDate dateWithTimeIntervalSince1970:(timestamp / 1000.0)];
+        eventDict[@"startDate"] = startDate;
+    }
+    
+    // endDate
+    if (eventData.Has("endDate") && eventData.Get("endDate").IsDate()) {
+        double timestamp = eventData.Get("endDate").As<Napi::Date>().ValueOf();
+        NSDate *endDate = [NSDate dateWithTimeIntervalSince1970:(timestamp / 1000.0)];
+        eventDict[@"endDate"] = endDate;
+    }
+    
+    // isAllDay
+    if (eventData.Has("isAllDay") && eventData.Get("isAllDay").IsBoolean()) {
+        bool isAllDay = eventData.Get("isAllDay").As<Napi::Boolean>().Value();
+        eventDict[@"isAllDay"] = @(isAllDay);
+    }
+    
+    // location
+    if (eventData.Has("location") && eventData.Get("location").IsString()) {
+        std::string location = eventData.Get("location").As<Napi::String>().Utf8Value();
+        eventDict[@"location"] = [NSString stringWithUTF8String:location.c_str()];
+    }
+    
+    // url
+    if (eventData.Has("url") && eventData.Get("url").IsString()) {
+        std::string url = eventData.Get("url").As<Napi::String>().Utf8Value();
+        eventDict[@"url"] = [NSString stringWithUTF8String:url.c_str()];
+    }
+    
+    // availability
+    if (eventData.Has("availability") && eventData.Get("availability").IsString()) {
+        std::string availability = eventData.Get("availability").As<Napi::String>().Utf8Value();
+        eventDict[@"availability"] = [NSString stringWithUTF8String:availability.c_str()];
+    }
+    
+    // Create NSString from the span
+    NSString* spanString = [NSString stringWithUTF8String:span.c_str()];
+    
+    // Create a worker to process the save operation
+    SaveEventWorker *worker = new SaveEventWorker(deferred);
+    
+    // Use a try-catch block to catch any Objective-C exceptions
+    @try {
+        EventKitBridge *bridge = GetSharedBridge();
+        NSDictionary *result = [bridge saveEventWithEventData:eventDict span:spanString commit:commit];
+        
+        if (result == nil) {
+            deferred.Reject(Napi::Error::New(env, "Failed to save event. Default calendar not available.").Value());
+            return deferred.Promise();
+        }
+        
+        // Check if the operation was successful
+        NSNumber *success = result[@"success"];
+        if ([success boolValue]) {
+            // If successful, set the event ID
+            NSString *eventId = result[@"id"];
+            worker->SetResult(true, [eventId UTF8String]);
+        } else {
+            // If failed, set the error message
+            NSString *errorMessage = result[@"error"] ?: @"Unknown error saving event";
+            worker->SetResult(false, [errorMessage UTF8String]);
+        }
+    } @catch (NSException *exception) {
+        // Create a helpful error message
+        std::string errorMessage = "Error saving event: ";
+        errorMessage += [[exception reason] UTF8String];
+        
+        worker->SetResult(false, errorMessage);
+    }
+    
+    // Queue the worker
+    worker->Queue();
+    
+    // Return the promise
+    return deferred.Promise();
+}
+
+// SaveReminder function
+Napi::Value SaveReminder(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Create a promise
+    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
+    
+    // Check parameters
+    if (info.Length() < 1 || !info[0].IsObject()) {
+        deferred.Reject(Napi::Error::New(env, "Reminder data is required and must be an object.").Value());
+        return deferred.Promise();
+    }
+    
+    // Get the reminder data parameter
+    Napi::Object reminderData = info[0].As<Napi::Object>();
+    
+    // Get the commit parameter (optional, default to true)
+    bool commit = true;
+    if (info.Length() >= 2 && info[1].IsBoolean()) {
+        commit = info[1].As<Napi::Boolean>().Value();
+    }
+    
+    // Convert JavaScript object to NSDictionary
+    NSMutableDictionary *reminderDict = [NSMutableDictionary dictionary];
+    
+    // Process reminder properties
+    
+    // id (optional, for updating existing reminders)
+    if (reminderData.Has("id") && reminderData.Get("id").IsString()) {
+        std::string id = reminderData.Get("id").As<Napi::String>().Utf8Value();
+        reminderDict[@"id"] = [NSString stringWithUTF8String:id.c_str()];
+    }
+    
+    // title
+    if (reminderData.Has("title") && reminderData.Get("title").IsString()) {
+        std::string title = reminderData.Get("title").As<Napi::String>().Utf8Value();
+        reminderDict[@"title"] = [NSString stringWithUTF8String:title.c_str()];
+    }
+    
+    // notes
+    if (reminderData.Has("notes") && reminderData.Get("notes").IsString()) {
+        std::string notes = reminderData.Get("notes").As<Napi::String>().Utf8Value();
+        reminderDict[@"notes"] = [NSString stringWithUTF8String:notes.c_str()];
+    }
+    
+    // calendarId
+    if (reminderData.Has("calendarId") && reminderData.Get("calendarId").IsString()) {
+        std::string calendarId = reminderData.Get("calendarId").As<Napi::String>().Utf8Value();
+        reminderDict[@"calendarId"] = [NSString stringWithUTF8String:calendarId.c_str()];
+    }
+    
+    // completed
+    if (reminderData.Has("completed") && reminderData.Get("completed").IsBoolean()) {
+        bool completed = reminderData.Get("completed").As<Napi::Boolean>().Value();
+        reminderDict[@"completed"] = @(completed);
+    }
+    
+    // priority
+    if (reminderData.Has("priority") && reminderData.Get("priority").IsNumber()) {
+        int priority = reminderData.Get("priority").As<Napi::Number>().Int32Value();
+        reminderDict[@"priority"] = @(priority);
+    }
+    
+    // dueDate
+    if (reminderData.Has("dueDate") && reminderData.Get("dueDate").IsDate()) {
+        double timestamp = reminderData.Get("dueDate").As<Napi::Date>().ValueOf();
+        NSDate *dueDate = [NSDate dateWithTimeIntervalSince1970:(timestamp / 1000.0)];
+        reminderDict[@"dueDate"] = dueDate;
+    }
+    
+    // startDate
+    if (reminderData.Has("startDate") && reminderData.Get("startDate").IsDate()) {
+        double timestamp = reminderData.Get("startDate").As<Napi::Date>().ValueOf();
+        NSDate *startDate = [NSDate dateWithTimeIntervalSince1970:(timestamp / 1000.0)];
+        reminderDict[@"startDate"] = startDate;
+    }
+    
+    // Create a worker to process the save operation
+    SaveReminderWorker *worker = new SaveReminderWorker(deferred);
+    
+    // Use a try-catch block to catch any Objective-C exceptions
+    @try {
+        EventKitBridge *bridge = GetSharedBridge();
+        NSDictionary *result = [bridge saveReminderWithReminderData:reminderDict commit:commit];
+        
+        if (result == nil) {
+            deferred.Reject(Napi::Error::New(env, "Failed to save reminder. Default calendar not available.").Value());
+            return deferred.Promise();
+        }
+        
+        // Check if the operation was successful
+        NSNumber *success = result[@"success"];
+        if ([success boolValue]) {
+            // If successful, set the reminder ID
+            NSString *reminderId = result[@"id"];
+            worker->SetResult(true, [reminderId UTF8String]);
+        } else {
+            // If failed, set the error message
+            NSString *errorMessage = result[@"error"] ?: @"Unknown error saving reminder";
+            worker->SetResult(false, [errorMessage UTF8String]);
+        }
+    } @catch (NSException *exception) {
+        // Create a helpful error message
+        std::string errorMessage = "Error saving reminder: ";
+        errorMessage += [[exception reason] UTF8String];
+        
+        worker->SetResult(false, errorMessage);
+    }
+    
+    // Queue the worker
+    worker->Queue();
+    
+    // Return the promise
+    return deferred.Promise();
+}
+
 // Initialize the module
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getCalendars", Napi::Function::New(env, GetCalendars));
@@ -1372,6 +1753,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getCalendarItemsWithExternalIdentifier", Napi::Function::New(env, GetCalendarItemsWithExternalIdentifier));
     exports.Set("removeEvent", Napi::Function::New(env, RemoveEvent));
     exports.Set("removeReminder", Napi::Function::New(env, RemoveReminder));
+    exports.Set("saveEvent", Napi::Function::New(env, SaveEvent));
+    exports.Set("saveReminder", Napi::Function::New(env, SaveReminder));
     return exports;
 }
 
