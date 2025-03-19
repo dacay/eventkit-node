@@ -69,40 +69,57 @@ Gets a calendar with the specified identifier.
 Creates a new calendar or updates an existing one.
 
 - `calendarData`: The calendar data to save.
-  - For new calendars, omit the `id` property.
+  - For new calendars, omit the `id` property and provide a valid `sourceId` property.
   - For existing calendars, include the `id` property.
   - Always specify the `entityType` ('event' or 'reminder').
 - `commit`: Whether to commit the changes immediately (default: `true`). When set to `false`, changes are not saved to the database until a separate commit operation is performed.
 - Returns: A promise that resolves to the calendar identifier if successful.
-- Throws: Error if the calendar data is invalid or the operation fails.
+- Throws: Error if the calendar data is invalid (e.g., missing required sourceId) or the operation fails.
 
 **Examples:**
 
 ```javascript
 // Create a new calendar
-const newCalendarId = await saveCalendar({
-  title: 'My Calendar',
-  entityType: 'event',
-  color: { hex: '#FF0000FF' }
-});
+try {
+  const newCalendarId = await saveCalendar({
+    title: 'My Calendar',
+    entityType: 'event',
+    sourceId: 'source-id-123', // Required for new calendars
+    color: { hex: '#FF0000FF' }
+  });
+  console.log('New calendar ID:', newCalendarId);
+} catch (error) {
+  console.error('Failed to create calendar:', error);
+}
 
 // Update an existing calendar
 const calendar = getCalendar('calendar-id');
 if (calendar) {
-  const updatedCalendarId = await saveCalendar({
-    id: calendar.id,
-    title: 'Updated Title',
-    entityType: 'event',
-    color: { hex: calendar.color.hex }
-  });
+  try {
+    const updatedCalendarId = await saveCalendar({
+      id: calendar.id,
+      title: 'Updated Title',
+      entityType: 'event',
+      color: { hex: calendar.color.hex }
+    });
+    console.log('Updated calendar ID:', updatedCalendarId);
+  } catch (error) {
+    console.error('Failed to update calendar:', error);
+  }
 }
 
 // Create a calendar without committing changes immediately
-const newCalendarId = await saveCalendar({
-  title: 'My Calendar',
-  entityType: 'event',
-  color: { hex: '#FF0000FF' }
-}, false);
+try {
+  const newCalendarId = await saveCalendar({
+    title: 'My Calendar',
+    entityType: 'event',
+    sourceId: 'source-id-123', // Required for new calendars
+    color: { hex: '#FF0000FF' }
+  }, false);
+  console.log('New calendar ID (not committed):', newCalendarId);
+} catch (error) {
+  console.error('Failed to create calendar:', error);
+}
 ```
 
 ### `removeCalendar(identifier: string, commit?: boolean)`
@@ -524,5 +541,137 @@ interface Reminder {
   hasAlarms: boolean;
   /** External identifier for the reminder, useful for external sync services */
   externalIdentifier: string | null;
+}
+```
+
+### `saveEvent(eventData: EventData, span?: SpanType, commit?: boolean)`
+
+Creates a new event or updates an existing one.
+
+- `eventData`: The event data to save.
+  - For new events, omit the `id` property and provide a valid `calendarId` property.
+  - For existing events, include the `id` property.
+- `span`: For recurring events, controls which instances to modify ('thisEvent' or 'futureEvents'). Default is 'thisEvent'.
+- `commit`: Whether to commit the changes immediately (default: `true`). When set to `false`, changes are not saved to the database until a separate commit operation is performed.
+- Returns: A promise that resolves to the event identifier if successful.
+- Throws: Error if the event data is invalid (e.g., missing required calendarId) or the operation fails.
+
+**Examples:**
+
+```javascript
+// Create a new event
+try {
+  const eventId = await saveEvent({
+    title: 'Team Meeting',
+    calendarId: 'calendar-id-123', // Required for new events
+    startDate: new Date(2023, 5, 15, 14, 0), // June 15, 2023, 2:00 PM
+    endDate: new Date(2023, 5, 15, 15, 0),   // June 15, 2023, 3:00 PM
+    location: 'Conference Room A',
+    notes: 'Discuss project progress',
+    isAllDay: false,
+    availability: 'busy'
+  });
+  console.log('New event ID:', eventId);
+} catch (error) {
+  console.error('Failed to create event:', error);
+}
+
+// Update an existing event
+try {
+  const updatedEventId = await saveEvent({
+    id: 'event-id-123',
+    title: 'Updated Meeting Title',
+    notes: 'New agenda items added'
+  });
+  console.log('Updated event ID:', updatedEventId);
+} catch (error) {
+  console.error('Failed to update event:', error);
+}
+```
+
+### `saveReminder(reminderData: ReminderData, commit?: boolean)`
+
+Creates a new reminder or updates an existing one.
+
+- `reminderData`: The reminder data to save.
+  - For new reminders, omit the `id` property and provide a valid `calendarId` property.
+  - For existing reminders, include the `id` property.
+- `commit`: Whether to commit the changes immediately (default: `true`). When set to `false`, changes are not saved to the database until a separate commit operation is performed.
+- Returns: A promise that resolves to the reminder identifier if successful.
+- Throws: Error if the reminder data is invalid (e.g., missing required calendarId) or the operation fails.
+
+**Examples:**
+
+```javascript
+// Create a new reminder
+try {
+  const reminderId = await saveReminder({
+    title: 'Buy groceries',
+    calendarId: 'calendar-id-123', // Required for new reminders
+    dueDate: new Date(2023, 5, 16, 18, 0), // June 16, 2023, 6:00 PM
+    notes: 'Milk, bread, eggs',
+    priority: 5,
+    completed: false
+  });
+  console.log('New reminder ID:', reminderId);
+} catch (error) {
+  console.error('Failed to create reminder:', error);
+}
+
+// Update an existing reminder
+try {
+  const updatedReminderId = await saveReminder({
+    id: 'reminder-id-123',
+    title: 'Buy groceries and household items',
+    notes: 'Added paper towels and soap',
+    completed: true
+  });
+  console.log('Updated reminder ID:', updatedReminderId);
+} catch (error) {
+  console.error('Failed to update reminder:', error);
+}
+```
+
+### `removeEvent(identifier: string, span?: SpanType, commit?: boolean)`
+
+Removes an event with the specified identifier.
+
+- `identifier`: The unique identifier of the event to remove.
+- `span`: For recurring events, controls which instances to remove ('thisEvent' or 'futureEvents'). Default is 'thisEvent'.
+- `commit`: Whether to commit the changes immediately (default: `true`). When set to `false`, changes are not saved to the database until a separate commit operation is performed.
+- Returns: A promise that resolves to true if successful, false if the event wasn't found.
+
+**Examples:**
+
+```javascript
+// Remove a single event
+const success = await removeEvent('event-id-123');
+if (success) {
+  console.log('Event removed successfully');
+} else {
+  console.log('Event not found or could not be removed');
+}
+
+// Remove a recurring event and all future occurrences
+const success = await removeEvent('recurring-event-id', 'futureEvents');
+```
+
+### `removeReminder(identifier: string, commit?: boolean)`
+
+Removes a reminder with the specified identifier.
+
+- `identifier`: The unique identifier of the reminder to remove.
+- `commit`: Whether to commit the changes immediately (default: `true`). When set to `false`, changes are not saved to the database until a separate commit operation is performed.
+- Returns: A promise that resolves to true if successful, false if the reminder wasn't found.
+
+**Examples:**
+
+```javascript
+// Remove a reminder
+const success = await removeReminder('reminder-id-123');
+if (success) {
+  console.log('Reminder removed successfully');
+} else {
+  console.log('Reminder not found or could not be removed');
 }
 ```
