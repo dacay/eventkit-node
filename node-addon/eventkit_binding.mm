@@ -554,6 +554,30 @@ Napi::Value Reset(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
+// GetAuthorizationStatus function
+Napi::Value GetAuthorizationStatus(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Check if we have the required arguments
+    if (info.Length() < 1 || !info[0].IsString()) {
+        Napi::TypeError::New(env, "Entity type is required and must be a string").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Get the entity type parameter
+    std::string entityType = info[0].As<Napi::String>().Utf8Value();
+    NSString *entityTypeStr = [NSString stringWithUTF8String:entityType.c_str()];
+    
+    // Create the EventKitBridge
+    EventKitBridge *bridge = GetSharedBridge();
+    
+    // Get the authorization status
+    NSString *status = [bridge getAuthorizationStatusWithEntityTypeString:entityTypeStr];
+    
+    // Return the status as a string
+    return Napi::String::New(env, [status UTF8String]);
+}
+
 // RefreshSourcesIfNecessary function
 Napi::Value RefreshSourcesIfNecessary(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -1755,6 +1779,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("removeReminder", Napi::Function::New(env, RemoveReminder));
     exports.Set("saveEvent", Napi::Function::New(env, SaveEvent));
     exports.Set("saveReminder", Napi::Function::New(env, SaveReminder));
+    exports.Set("getAuthorizationStatus", Napi::Function::New(env, GetAuthorizationStatus));
     return exports;
 }
 

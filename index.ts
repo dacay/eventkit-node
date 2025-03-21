@@ -4,6 +4,12 @@
 export type EntityType = 'event' | 'reminder';
 
 /**
+ * Authorization status for calendar or reminder access
+ * @see https://developer.apple.com/documentation/eventkit/ekauthorizationstatus
+ */
+export type AuthorizationStatus = 'notDetermined' | 'restricted' | 'denied' | 'authorized' | 'fullAccess' | 'writeOnly' | 'unknown';
+
+/**
  * Calendar type
  */
 export type CalendarType = 'local' | 'calDAV' | 'exchange' | 'subscription' | 'birthday' | 'unknown';
@@ -697,4 +703,14 @@ export interface ReminderData {
  */
 export function saveReminder(reminderData: ReminderData, commit: boolean = true): Promise<string> {
   return nativeModule.saveReminder(reminderData, commit);
+}
+
+/**
+ * Get the current authorization status for calendar or reminder access
+ * @param entityType The type of entity to check authorization for
+ * @returns The current authorization status
+ * @see https://developer.apple.com/documentation/eventkit/ekauthorizationstatus
+ */
+export function getAuthorizationStatus(entityType: EntityType): AuthorizationStatus {
+  return nativeModule.getAuthorizationStatus(entityType);
 } 

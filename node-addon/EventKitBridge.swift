@@ -346,6 +346,28 @@ import Foundation
         return nil
     }
 
+    @objc public func getAuthorizationStatus(entityTypeString: String) -> String {
+        let entityType: EKEntityType = entityTypeString.lowercased() == "reminder" ? .reminder : .event
+        let status = EKEventStore.authorizationStatus(for: entityType)
+        
+        switch status {
+        case .notDetermined:
+            return "notDetermined"
+        case .restricted:
+            return "restricted"
+        case .denied:
+            return "denied"
+        case .authorized:
+            return "authorized"
+        case .fullAccess:
+            return "fullAccess"
+        case .writeOnly:
+            return "writeOnly"
+        @unknown default:
+            return "unknown"
+        }
+    }
+
     // Event object for JSON serialization
     @objc public class Event: NSObject {
         @objc public let id: String
