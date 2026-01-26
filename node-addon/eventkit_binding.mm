@@ -6,6 +6,7 @@
 //
 
 #include <napi.h>
+#include <memory>
 #import <Foundation/Foundation.h>
 #import <EventKit/EventKit.h>
 #import "eventkit_node-Swift.h" // Generated header from Swift
@@ -184,74 +185,158 @@ Napi::Value GetSource(const Napi::CallbackInfo& info) {
     }
 }
 
-// Class to handle the calendar access request
-class CalendarAccessWorker : public Napi::AsyncWorker {
-public:
-    CalendarAccessWorker(const Napi::Promise::Deferred& deferred)
-        : Napi::AsyncWorker(Napi::Function::New(deferred.Env(), [](const Napi::CallbackInfo& info) { return info.Env().Undefined(); })),
-          deferred_(deferred), granted_(false) {}
-    
-    // Execute is called on a worker thread
-    void Execute() override {
-        // This is intentionally left empty as we're not doing any work here
-        // The actual work is done in the Swift code
+// Thread-safe context for calendar/reminders access requests
+// This allows Swift callbacks to safely resolve promises on the JS thread
+struct AccessRequestContext {
+    std::shared_ptr<Napi::Promise::Deferred> deferred;
+    Napi::ThreadSafeFunction tsfn;
+
+    AccessRequestContext(Napi::Env env) {
+        deferred = std::make_shared<Napi::Promise::Deferred>(Napi::Promise::Deferred::New(env));
+
+        // Create thread-safe function for cross-thread communication
+        tsfn = Napi::ThreadSafeFunction::New(
+            env,
+            Napi::Function::New(env, [](const Napi::CallbackInfo&) {}),
+            "AccessRequestCallback",
+            0,  // Unlimited queue
+            1   // Only one thread will use this
+        );
     }
-    
-    // OnOK is called on the main thread when Execute completes
-    void OnOK() override {
-        Napi::HandleScope scope(Env());
-        deferred_.Resolve(Napi::Boolean::New(Env(), granted_));
+
+    void ResolveWithResult(bool granted) {
+        // Capture the shared_ptr by value to keep it alive even if context is deleted
+        auto deferredCopy = this->deferred;
+        auto callback = [deferredCopy, granted](Napi::Env env, Napi::Function jsCallback) {
+            // Now we're safely on the JS main thread
+            Napi::HandleScope scope(env);
+            deferredCopy->Resolve(Napi::Boolean::New(env, granted));
+        };
+
+        tsfn.BlockingCall(callback);
+        tsfn.Release();
     }
-    
-    // OnError is called on the main thread if Execute throws
-    void OnError(const Napi::Error& error) override {
-        Napi::HandleScope scope(Env());
-        deferred_.Reject(error.Value());
-    }
-    
-    // Method to set the granted value
-    void SetGranted(bool granted) {
-        granted_ = granted;
-    }
-    
-private:
-    Napi::Promise::Deferred deferred_;
-    bool granted_;
 };
 
-// Class to handle the reminders access request
-class RemindersAccessWorker : public Napi::AsyncWorker {
-public:
-    RemindersAccessWorker(const Napi::Promise::Deferred& deferred)
-        : Napi::AsyncWorker(Napi::Function::New(deferred.Env(), [](const Napi::CallbackInfo& info) { return info.Env().Undefined(); })),
-          deferred_(deferred), granted_(false) {}
-    
-    // Execute is called on a worker thread
-    void Execute() override {
-        // This is intentionally left empty as we're not doing any work here
-        // The actual work is done in the Swift code
+// Thread-safe context for operations that return success/error strings
+struct RemoveCalendarContext {
+    std::shared_ptr<Napi::Promise::Deferred> deferred;
+    Napi::ThreadSafeFunction tsfn;
+
+    RemoveCalendarContext(Napi::Env env) {
+        deferred = std::make_shared<Napi::Promise::Deferred>(Napi::Promise::Deferred::New(env));
+
+        tsfn = Napi::ThreadSafeFunction::New(
+            env,
+            Napi::Function::New(env, [](const Napi::CallbackInfo&) {}),
+            "RemoveCalendarCallback",
+            0,  // Unlimited queue
+            1   // Only one thread will use this
+        );
     }
-    
-    // OnOK is called on the main thread when Execute completes
-    void OnOK() override {
-        Napi::HandleScope scope(Env());
-        deferred_.Resolve(Napi::Boolean::New(Env(), granted_));
+
+    void ResolveWithResult(bool success, const std::string& errorMessage) {
+        // Capture the shared_ptr by value to keep it alive
+        auto deferredCopy = this->deferred;
+        auto callback = [deferredCopy, success, errorMessage](Napi::Env env, Napi::Function jsCallback) {
+            Napi::HandleScope scope(env);
+            if (success) {
+                deferredCopy->Resolve(Napi::Boolean::New(env, true));
+            } else {
+                deferredCopy->Reject(Napi::Error::New(env, errorMessage).Value());
+            }
+        };
+
+        tsfn.BlockingCall(callback);
+        tsfn.Release();
     }
-    
-    // OnError is called on the main thread if Execute throws
-    void OnError(const Napi::Error& error) override {
-        Napi::HandleScope scope(Env());
-        deferred_.Reject(error.Value());
+};
+
+// Thread-safe context for reminders fetch operations
+struct RemindersFetchContext {
+    std::shared_ptr<Napi::Promise::Deferred> deferred;
+    Napi::ThreadSafeFunction tsfn;
+
+    RemindersFetchContext(Napi::Env env) {
+        deferred = std::make_shared<Napi::Promise::Deferred>(Napi::Promise::Deferred::New(env));
+
+        tsfn = Napi::ThreadSafeFunction::New(
+            env,
+            Napi::Function::New(env, [](const Napi::CallbackInfo&) {}),
+            "RemindersFetchCallback",
+            0,  // Unlimited queue
+            1   // Only one thread will use this
+        );
     }
-    
-    // Method to set the granted value
-    void SetGranted(bool granted) {
-        granted_ = granted;
+
+    void ResolveWithReminders(NSArray<Reminder *> * _Nullable reminders) {
+        // Retain the reminders array to prevent deallocation
+        NSArray<Reminder *> *remindersRetained = nil;
+        if (reminders) {
+            remindersRetained = [reminders retain];
+        }
+
+        // Capture by value to keep them alive
+        auto deferredCopy = this->deferred;
+        auto callback = [deferredCopy, remindersRetained](Napi::Env env, Napi::Function jsCallback) {
+            Napi::HandleScope scope(env);
+
+            if (!remindersRetained) {
+                deferredCopy->Resolve(Napi::Array::New(env));
+            } else {
+                // Convert reminders array to JS
+                Napi::Array jsArray = Napi::Array::New(env, [remindersRetained count]);
+                for (NSUInteger i = 0; i < [remindersRetained count]; i++) {
+                    Reminder *reminder = remindersRetained[i];
+                    Napi::Object jsObject = Napi::Object::New(env);
+
+                    jsObject.Set("id", Napi::String::New(env, [reminder.id UTF8String]));
+                    jsObject.Set("title", Napi::String::New(env, [reminder.title UTF8String]));
+
+                    if (reminder.notes) {
+                        jsObject.Set("notes", Napi::String::New(env, [reminder.notes UTF8String]));
+                    } else {
+                        jsObject.Set("notes", env.Null());
+                    }
+
+                    jsObject.Set("calendarId", Napi::String::New(env, [reminder.calendarId UTF8String]));
+                    jsObject.Set("calendarTitle", Napi::String::New(env, [reminder.calendarTitle UTF8String]));
+                    jsObject.Set("completed", Napi::Boolean::New(env, reminder.completed));
+
+                    if (reminder.dueDate) {
+                        jsObject.Set("dueDate", Napi::Date::New(env, [reminder.dueDate timeIntervalSince1970] * 1000));
+                    } else {
+                        jsObject.Set("dueDate", env.Null());
+                    }
+
+                    if (reminder.completionDate) {
+                        jsObject.Set("completionDate", Napi::Date::New(env, [reminder.completionDate timeIntervalSince1970] * 1000));
+                    } else {
+                        jsObject.Set("completionDate", env.Null());
+                    }
+
+                    jsObject.Set("priority", Napi::Number::New(env, reminder.priority));
+                    jsObject.Set("hasAlarms", Napi::Boolean::New(env, reminder.hasAlarms));
+
+                    if (reminder.externalIdentifier) {
+                        jsObject.Set("externalIdentifier", Napi::String::New(env, [reminder.externalIdentifier UTF8String]));
+                    } else {
+                        jsObject.Set("externalIdentifier", env.Null());
+                    }
+
+                    jsArray.Set(i, jsObject);
+                }
+
+                deferredCopy->Resolve(jsArray);
+
+                // Release the reminders array
+                [remindersRetained release];
+            }
+        };
+
+        tsfn.BlockingCall(callback);
+        tsfn.Release();
     }
-    
-private:
-    Napi::Promise::Deferred deferred_;
-    bool granted_;
 };
 
 // Class to handle the save calendar operation
@@ -349,50 +434,48 @@ private:
     std::string errorMessage_;
 };
 
-// RequestCalendarAccess function
+// RequestCalendarAccess function - thread-safe version
 Napi::Value RequestCalendarAccess(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    
-    // Create a promise
-    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
-    
-    // Create the worker
-    CalendarAccessWorker* worker = new CalendarAccessWorker(deferred);
-    
-    // Create the EventKitBridge
+
+    // Create thread-safe context that will be captured by the Swift callback
+    AccessRequestContext* context = new AccessRequestContext(env);
+
+    // Get the EventKitBridge
     EventKitBridge *bridge = GetSharedBridge();
-    
-    // Request calendar access
+
+    // Request calendar access - the callback can safely execute on any thread
     [bridge requestCalendarAccessWithCompletion:^(BOOL granted) {
-        worker->SetGranted(granted);
-        worker->Queue();
+        // This block executes on the Swift callback thread
+        // Use the thread-safe function to resolve the promise on the JS thread
+        context->ResolveWithResult(granted);
+        delete context;  // Clean up after resolving
     }];
-    
-    // Return the promise
-    return deferred.Promise();
+
+    // Return the promise immediately
+    return context->deferred->Promise();
 }
 
-// RequestRemindersAccess function
+// RequestRemindersAccess function - thread-safe version
 Napi::Value RequestRemindersAccess(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    
-    // Create a promise
-    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
-    
-    // Create the worker
-    RemindersAccessWorker* worker = new RemindersAccessWorker(deferred);
-    
-    // Create the EventKitBridge
+
+    // Create thread-safe context that will be captured by the Swift callback
+    AccessRequestContext* context = new AccessRequestContext(env);
+
+    // Get the EventKitBridge
     EventKitBridge *bridge = GetSharedBridge();
-    
-    // Request reminders access
+
+    // Request reminders access - the callback can safely execute on any thread
     [bridge requestRemindersAccessWithCompletion:^(BOOL granted) {
-        worker->SetGranted(granted);
-        worker->Queue();
+        // This block executes on the Swift callback thread
+        // Use the thread-safe function to resolve the promise on the JS thread
+        context->ResolveWithResult(granted);
+        delete context;  // Clean up after resolving
     }];
-    
-    // Return the promise
-    return deferred.Promise();
+
+    // Return the promise immediately
+    return context->deferred->Promise();
 }
 
 // SaveCalendar function
@@ -493,27 +576,26 @@ Napi::Value SaveCalendar(const Napi::CallbackInfo& info) {
     return deferred.Promise();
 }
 
-// RequestWriteOnlyAccessToEvents function
+// RequestWriteOnlyAccessToEvents function - thread-safe version
 Napi::Value RequestWriteOnlyAccessToEvents(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    
-    // Create a promise
-    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
-    
-    // Create the worker
-    CalendarAccessWorker* worker = new CalendarAccessWorker(deferred);
-    
-    // Create the EventKitBridge
+
+    // Create thread-safe context that will be captured by the Swift callback
+    AccessRequestContext* context = new AccessRequestContext(env);
+
+    // Get the EventKitBridge
     EventKitBridge *bridge = GetSharedBridge();
-    
-    // Request write-only access to events
+
+    // Request write-only access to events - the callback can safely execute on any thread
     [bridge requestWriteOnlyAccessToEventsWithCompletion:^(BOOL granted) {
-        worker->SetGranted(granted);
-        worker->Queue();
+        // This block executes on the Swift callback thread
+        // Use the thread-safe function to resolve the promise on the JS thread
+        context->ResolveWithResult(granted);
+        delete context;  // Clean up after resolving
     }];
-    
-    // Return the promise
-    return deferred.Promise();
+
+    // Return the promise immediately
+    return context->deferred->Promise();
 }
 
 // Commit function
@@ -628,45 +710,42 @@ Napi::Value GetDefaultCalendarForNewReminders(const Napi::CallbackInfo& info) {
     return CalendarToJSObject(info, calendar);
 }
 
-// RemoveCalendar function
+// RemoveCalendar function - thread-safe version
 Napi::Value RemoveCalendar(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    
+
     // Check if calendar identifier parameter is provided
     if (info.Length() < 1 || !info[0].IsString()) {
         Napi::Error::New(env, "Calendar identifier is required and must be a string.")
             .ThrowAsJavaScriptException();
         return env.Undefined();
     }
-    
+
     // Get the calendar identifier parameter
     std::string identifier = info[0].As<Napi::String>().Utf8Value();
-    
+
     // Get the commit parameter, default to true
     bool commit = true;
     if (info.Length() > 1 && info[1].IsBoolean()) {
         commit = info[1].As<Napi::Boolean>().Value();
     }
-    
-    // Create a promise
-    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
-    
-    // Create the worker
-    RemoveCalendarWorker* worker = new RemoveCalendarWorker(deferred);
-    
-    // Create the EventKitBridge
+
+    // Create thread-safe context
+    RemoveCalendarContext* context = new RemoveCalendarContext(env);
+
+    // Get the EventKitBridge
     EventKitBridge *bridge = GetSharedBridge();
-    
-    // Remove the calendar
+
+    // Remove the calendar - callback can execute on any thread
     NSString* identifierString = [NSString stringWithUTF8String:identifier.c_str()];
     [bridge removeCalendarWithIdentifier:identifierString commit:commit completion:^(BOOL success, NSString * _Nullable errorMessage) {
         std::string error = errorMessage ? [errorMessage UTF8String] : "";
-        worker->SetResult(success, error);
-        worker->Queue();
+        context->ResolveWithResult(success, error);
+        delete context;
     }];
-    
-    // Return the promise
-    return deferred.Promise();
+
+    // Return the promise immediately
+    return context->deferred->Promise();
 }
 
 // Helper to convert Event object to JS object
@@ -1155,27 +1234,20 @@ Napi::Value GetRemindersWithPredicate(const Napi::CallbackInfo& info) {
     // Get the predicate from the object's internal field
     Predicate *predicate = reinterpret_cast<Predicate *>(predicateObj.Get("_nativeHandle").As<Napi::External<Predicate>>().Data());
     
-    // Create a promise to return
-    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
-    
-    // Create a worker to handle the async operation, passing the predicate object
-    RemindersFetchWorker* worker = new RemindersFetchWorker(deferred, predicateObj);
-    
+    // Create thread-safe context
+    RemindersFetchContext* context = new RemindersFetchContext(env);
+
     // Call the Swift method to fetch reminders
     EventKitBridge *bridge = GetSharedBridge();
     [bridge getRemindersWithPredicate:predicate completion:^(NSArray<Reminder *> * _Nullable reminders) {
-        if (reminders) {
-            worker->SetReminders(reminders);
-            worker->Queue();
-        } else {
-            // If reminders is nil, resolve with an empty array
-            Napi::Array emptyArray = Napi::Array::New(env);
-            deferred.Resolve(emptyArray);
-            delete worker; // Clean up the worker since we're not queuing it
-        }
+        // This block executes on the Swift callback thread
+        // Use thread-safe function to resolve the promise on the JS thread
+        context->ResolveWithReminders(reminders);
+        delete context;
     }];
-    
-    return deferred.Promise();
+
+    // Return the promise immediately
+    return context->deferred->Promise();
 }
 
 // GetCalendarItem function
