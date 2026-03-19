@@ -404,16 +404,16 @@ Napi::Value RequestCalendarAccess(const Napi::CallbackInfo& info) {
     // Get the EventKitBridge
     EventKitBridge *bridge = GetSharedBridge();
 
+    // Capture promise before the bridge call in case callback fires synchronously
+    auto promise = context->deferred->Promise();
+
     // Request calendar access - the callback can safely execute on any thread
     [bridge requestCalendarAccessWithCompletion:^(BOOL granted) {
-        // This block executes on the Swift callback thread
-        // Use the thread-safe function to resolve the promise on the JS thread
         context->ResolveWithResult(granted);
-        delete context;  // Clean up after resolving
+        delete context;
     }];
 
-    // Return the promise immediately
-    return context->deferred->Promise();
+    return promise;
 }
 
 // RequestRemindersAccess function - thread-safe version
@@ -426,16 +426,16 @@ Napi::Value RequestRemindersAccess(const Napi::CallbackInfo& info) {
     // Get the EventKitBridge
     EventKitBridge *bridge = GetSharedBridge();
 
+    // Capture promise before the bridge call in case callback fires synchronously
+    auto promise = context->deferred->Promise();
+
     // Request reminders access - the callback can safely execute on any thread
     [bridge requestRemindersAccessWithCompletion:^(BOOL granted) {
-        // This block executes on the Swift callback thread
-        // Use the thread-safe function to resolve the promise on the JS thread
         context->ResolveWithResult(granted);
-        delete context;  // Clean up after resolving
+        delete context;
     }];
 
-    // Return the promise immediately
-    return context->deferred->Promise();
+    return promise;
 }
 
 // SaveCalendar function
@@ -546,16 +546,16 @@ Napi::Value RequestWriteOnlyAccessToEvents(const Napi::CallbackInfo& info) {
     // Get the EventKitBridge
     EventKitBridge *bridge = GetSharedBridge();
 
+    // Capture promise before the bridge call in case callback fires synchronously
+    auto promise = context->deferred->Promise();
+
     // Request write-only access to events - the callback can safely execute on any thread
     [bridge requestWriteOnlyAccessToEventsWithCompletion:^(BOOL granted) {
-        // This block executes on the Swift callback thread
-        // Use the thread-safe function to resolve the promise on the JS thread
         context->ResolveWithResult(granted);
-        delete context;  // Clean up after resolving
+        delete context;
     }];
 
-    // Return the promise immediately
-    return context->deferred->Promise();
+    return promise;
 }
 
 // Commit function - thread-safe version
@@ -568,6 +568,9 @@ Napi::Value Commit(const Napi::CallbackInfo& info) {
     // Get the EventKitBridge
     EventKitBridge *bridge = GetSharedBridge();
 
+    // Capture promise before the bridge call in case callback fires synchronously
+    auto promise = context->deferred->Promise();
+
     // Commit changes - callback can execute on any thread
     [bridge commitWithCompletion:^(BOOL success, NSString * _Nullable errorMessage) {
         std::string error = errorMessage ? [errorMessage UTF8String] : "";
@@ -575,8 +578,7 @@ Napi::Value Commit(const Napi::CallbackInfo& info) {
         delete context;
     }];
 
-    // Return the promise immediately
-    return context->deferred->Promise();
+    return promise;
 }
 
 // Reset function
@@ -695,14 +697,16 @@ Napi::Value RemoveCalendar(const Napi::CallbackInfo& info) {
 
     // Remove the calendar - callback can execute on any thread
     NSString* identifierString = [NSString stringWithUTF8String:identifier.c_str()];
+    // Capture promise before the bridge call in case callback fires synchronously
+    auto promise = context->deferred->Promise();
+
     [bridge removeCalendarWithIdentifier:identifierString commit:commit completion:^(BOOL success, NSString * _Nullable errorMessage) {
         std::string error = errorMessage ? [errorMessage UTF8String] : "";
         context->ResolveWithResult(success, error);
         delete context;
     }];
 
-    // Return the promise immediately
-    return context->deferred->Promise();
+    return promise;
 }
 
 // Helper to convert Event object to JS object
@@ -1091,15 +1095,15 @@ Napi::Value GetRemindersWithPredicate(const Napi::CallbackInfo& info) {
 
     // Call the Swift method to fetch reminders
     EventKitBridge *bridge = GetSharedBridge();
+    // Capture promise before the bridge call in case callback fires synchronously
+    auto promise = context->deferred->Promise();
+
     [bridge getRemindersWithPredicate:predicate completion:^(NSArray<Reminder *> * _Nullable reminders) {
-        // This block executes on the Swift callback thread
-        // Use thread-safe function to resolve the promise on the JS thread
         context->ResolveWithReminders(reminders);
         delete context;
     }];
 
-    // Return the promise immediately
-    return context->deferred->Promise();
+    return promise;
 }
 
 // GetCalendarItem function
