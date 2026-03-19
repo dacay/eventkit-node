@@ -315,6 +315,12 @@ struct RemindersFetchContext {
                         jsObject.Set("completionDate", env.Null());
                     }
 
+                    if (reminder.startDate) {
+                        jsObject.Set("startDate", Napi::Date::New(env, [reminder.startDate timeIntervalSince1970] * 1000));
+                    } else {
+                        jsObject.Set("startDate", env.Null());
+                    }
+
                     jsObject.Set("priority", Napi::Number::New(env, reminder.priority));
                     jsObject.Set("hasAlarms", Napi::Boolean::New(env, reminder.hasAlarms));
 
@@ -385,52 +391,6 @@ private:
     Napi::Promise::Deferred deferred_;
     bool success_;
     std::string calendarId_;
-    std::string errorMessage_;
-};
-
-// Class to handle the remove calendar operation
-class RemoveCalendarWorker : public Napi::AsyncWorker {
-public:
-    RemoveCalendarWorker(const Napi::Promise::Deferred& deferred)
-        : Napi::AsyncWorker(Napi::Function::New(deferred.Env(), [](const Napi::CallbackInfo& info) { return info.Env().Undefined(); })),
-          deferred_(deferred), success_(false), errorMessage_("") {}
-    
-    // Execute is called on a worker thread
-    void Execute() override {
-        // This is intentionally left empty as we're not doing any work here
-        // The actual work is done in the Swift code
-    }
-    
-    // OnOK is called on the main thread when Execute completes
-    void OnOK() override {
-        Napi::HandleScope scope(Env());
-        
-        if (success_) {
-            // If successful, return true
-            deferred_.Resolve(Napi::Boolean::New(Env(), true));
-        } else {
-            // If failed, reject with the error message
-            deferred_.Reject(Napi::Error::New(Env(), errorMessage_).Value());
-        }
-    }
-    
-    // OnError is called on the main thread if Execute throws
-    void OnError(const Napi::Error& error) override {
-        Napi::HandleScope scope(Env());
-        deferred_.Reject(error.Value());
-    }
-    
-    // Method to set the result values
-    void SetResult(bool success, const std::string& errorMessage) {
-        success_ = success;
-        if (!success) {
-            errorMessage_ = errorMessage;
-        }
-    }
-    
-private:
-    Napi::Promise::Deferred deferred_;
-    bool success_;
     std::string errorMessage_;
 };
 
@@ -598,28 +558,25 @@ Napi::Value RequestWriteOnlyAccessToEvents(const Napi::CallbackInfo& info) {
     return context->deferred->Promise();
 }
 
-// Commit function
+// Commit function - thread-safe version
 Napi::Value Commit(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    
-    // Create a promise
-    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
-    
-    // Create the EventKitBridge
+
+    // Create thread-safe context
+    RemoveCalendarContext* context = new RemoveCalendarContext(env);
+
+    // Get the EventKitBridge
     EventKitBridge *bridge = GetSharedBridge();
-    
-    // Commit changes
+
+    // Commit changes - callback can execute on any thread
     [bridge commitWithCompletion:^(BOOL success, NSString * _Nullable errorMessage) {
-        if (success) {
-            deferred.Resolve(Napi::Boolean::New(env, true));
-        } else {
-            std::string error = errorMessage ? [errorMessage UTF8String] : "Unknown error during commit";
-            deferred.Reject(Napi::Error::New(env, error).Value());
-        }
+        std::string error = errorMessage ? [errorMessage UTF8String] : "";
+        context->ResolveWithResult(success, error);
+        delete context;
     }];
-    
-    // Return the promise
-    return deferred.Promise();
+
+    // Return the promise immediately
+    return context->deferred->Promise();
 }
 
 // Reset function
@@ -1091,111 +1048,6 @@ Napi::Value GetEventsWithPredicate(const Napi::CallbackInfo& info) {
     
     return EventArrayToJSArray(info, events);
 }
-
-// RemindersFetchWorker class to handle asynchronous reminder fetching
-class RemindersFetchWorker : public Napi::AsyncWorker {
-private:
-    Napi::Promise::Deferred deferred_;
-    NSArray<Reminder *> *reminders_;
-    Napi::Reference<Napi::Object> predicateRef_; // Add a reference to keep the JS object alive
-
-public:
-    RemindersFetchWorker(Napi::Promise::Deferred deferred, Napi::Object predicateObj)
-        : Napi::AsyncWorker(deferred.Env()), deferred_(deferred), reminders_(nil) {
-        // Create a reference to the predicate object to keep it alive during the async operation
-        predicateRef_ = Napi::Persistent(predicateObj);
-    }
-
-    // Execute is called on a worker thread, but we don't need to do anything here
-    // since the actual work is done in Swift on the main thread
-    void Execute() override {
-        // Intentionally left empty - work is done in Swift
-    }
-
-    // OnOK is called on the main thread when Execute completes
-    void OnOK() override {
-        Napi::Env env = Env();
-        
-        // Convert reminders to JS array
-        Napi::Array jsArray = Napi::Array::New(env, [reminders_ count]);
-        
-        for (NSUInteger i = 0; i < [reminders_ count]; i++) {
-            Reminder *reminder = reminders_[i];
-            Napi::Object jsObject = Napi::Object::New(env);
-            
-            jsObject.Set("id", Napi::String::New(env, [reminder.id UTF8String]));
-            jsObject.Set("title", Napi::String::New(env, [reminder.title UTF8String]));
-            
-            if (reminder.notes) {
-                jsObject.Set("notes", Napi::String::New(env, [reminder.notes UTF8String]));
-            } else {
-                jsObject.Set("notes", env.Null());
-            }
-            
-            jsObject.Set("calendarId", Napi::String::New(env, [reminder.calendarId UTF8String]));
-            jsObject.Set("calendarTitle", Napi::String::New(env, [reminder.calendarTitle UTF8String]));
-            jsObject.Set("completed", Napi::Boolean::New(env, reminder.completed));
-            
-            if (reminder.completionDate) {
-                jsObject.Set("completionDate", Napi::Date::New(env, reminder.completionDate.timeIntervalSince1970 * 1000));
-            } else {
-                jsObject.Set("completionDate", env.Null());
-            }
-            
-            if (reminder.dueDate) {
-                jsObject.Set("dueDate", Napi::Date::New(env, reminder.dueDate.timeIntervalSince1970 * 1000));
-            } else {
-                jsObject.Set("dueDate", env.Null());
-            }
-            
-            if (reminder.startDate) {
-                jsObject.Set("startDate", Napi::Date::New(env, reminder.startDate.timeIntervalSince1970 * 1000));
-            } else {
-                jsObject.Set("startDate", env.Null());
-            }
-            
-            jsObject.Set("priority", Napi::Number::New(env, reminder.priority));
-            jsObject.Set("hasAlarms", Napi::Boolean::New(env, reminder.hasAlarms));
-            
-            // Add externalIdentifier if available
-            if (reminder.externalIdentifier) {
-                jsObject.Set("externalIdentifier", Napi::String::New(env, [reminder.externalIdentifier UTF8String]));
-            } else {
-                jsObject.Set("externalIdentifier", env.Null());
-            }
-            
-            jsArray.Set(i, jsObject);
-        }
-        
-        // Release the reference to the predicate object before resolving
-        predicateRef_.Reset();
-        
-        deferred_.Resolve(jsArray);
-    }
-
-    // OnError is called on the main thread if Execute throws
-    void OnError(const Napi::Error& e) override {
-        // Release the reference to the predicate object before rejecting
-        predicateRef_.Reset();
-        
-        deferred_.Reject(e.Value());
-    }
-    
-    // Set the reminders array
-    void SetReminders(NSArray<Reminder *> *reminders) {
-        // Retain the reminders array to prevent it from being deallocated
-        reminders_ = [reminders retain];
-    }
-    
-    // Destructor to clean up resources
-    ~RemindersFetchWorker() {
-        // Release the reminders array if it exists
-        if (reminders_) {
-            [reminders_ release];
-            reminders_ = nil;
-        }
-    }
-};
 
 // GetRemindersWithPredicate function
 Napi::Value GetRemindersWithPredicate(const Napi::CallbackInfo& info) {
