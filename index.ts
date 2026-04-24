@@ -120,6 +120,13 @@ export interface Event {
   availability: 'free' | 'busy' | 'tentative' | 'unavailable' | 'unknown';
   /** External identifier for the event, useful for external sync services */
   externalIdentifier: string | null;
+  /** Organizer info when available from EventKit */
+  organizer: {
+    name: string | null;
+    email: string | null;
+  } | null;
+  /** JSON-encoded attendee list with name/email/status/role/type/isCurrentUser */
+  attendeesJson: string;
 }
 
 /**

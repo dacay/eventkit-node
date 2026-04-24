@@ -383,6 +383,9 @@ import Foundation
         @objc public let hasAlarms: Bool
         @objc public let availability: String
         @objc public let externalIdentifier: String?
+        @objc public let organizerName: String?
+        @objc public let organizerEmail: String?
+        @objc public let attendeesJson: String
         
         init(from ekEvent: EKEvent) {
             self.id = ekEvent.eventIdentifier
@@ -397,6 +400,71 @@ import Foundation
             self.url = ekEvent.url?.absoluteString
             self.hasAlarms = ekEvent.hasAlarms
             self.externalIdentifier = ekEvent.calendarItemExternalIdentifier
+            if let organizer = ekEvent.organizer {
+                self.organizerName = organizer.name
+                let raw = organizer.url.absoluteString
+                if raw.lowercased().hasPrefix("mailto:") {
+                    self.organizerEmail = String(raw.dropFirst("mailto:".count))
+                } else {
+                    self.organizerEmail = nil
+                }
+            } else {
+                self.organizerName = nil
+                self.organizerEmail = nil
+            }
+
+            let attendeesArray: [[String: Any]] = (ekEvent.attendees ?? []).map { attendee in
+                let raw = attendee.url.absoluteString
+                let email: String? = raw.lowercased().hasPrefix("mailto:")
+                    ? String(raw.dropFirst("mailto:".count))
+                    : nil
+
+                let status: String
+                switch attendee.participantStatus {
+                case .accepted: status = "accepted"
+                case .declined: status = "declined"
+                case .tentative: status = "tentative"
+                case .pending: status = "pending"
+                case .delegated: status = "delegated"
+                case .completed: status = "completed"
+                case .inProcess: status = "inProcess"
+                default: status = "unknown"
+                }
+
+                let role: String
+                switch attendee.participantRole {
+                case .required: role = "required"
+                case .optional: role = "optional"
+                case .chair: role = "chair"
+                case .nonParticipant: role = "nonParticipant"
+                default: role = "unknown"
+                }
+
+                let type: String
+                switch attendee.participantType {
+                case .person: type = "person"
+                case .room: type = "room"
+                case .resource: type = "resource"
+                case .group: type = "group"
+                default: type = "unknown"
+                }
+
+                return [
+                    "name": attendee.name ?? "",
+                    "email": email ?? "",
+                    "url": raw,
+                    "status": status,
+                    "role": role,
+                    "type": type,
+                    "isCurrentUser": attendee.isCurrentUser
+                ]
+            }
+            if let data = try? JSONSerialization.data(withJSONObject: attendeesArray, options: []),
+               let json = String(data: data, encoding: .utf8) {
+                self.attendeesJson = json
+            } else {
+                self.attendeesJson = "[]"
+            }
             
             // Convert availability to string
             switch ekEvent.availability {

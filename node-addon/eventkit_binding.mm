@@ -709,7 +709,6 @@ Napi::Value RemoveCalendar(const Napi::CallbackInfo& info) {
     return promise;
 }
 
-// Helper to convert Event object to JS object
 Napi::Object EventToJSObject(const Napi::CallbackInfo& info, Event *event) {
     Napi::Env env = info.Env();
     Napi::Object jsObject = Napi::Object::New(env);
@@ -752,6 +751,23 @@ Napi::Object EventToJSObject(const Napi::CallbackInfo& info, Event *event) {
         jsObject.Set("externalIdentifier", Napi::String::New(env, [event.externalIdentifier UTF8String]));
     } else {
         jsObject.Set("externalIdentifier", env.Null());
+    }
+
+    if (event.organizerName || event.organizerEmail) {
+        Napi::Object organizer = Napi::Object::New(env);
+        if (event.organizerName) organizer.Set("name", Napi::String::New(env, [event.organizerName UTF8String]));
+        else organizer.Set("name", env.Null());
+        if (event.organizerEmail) organizer.Set("email", Napi::String::New(env, [event.organizerEmail UTF8String]));
+        else organizer.Set("email", env.Null());
+        jsObject.Set("organizer", organizer);
+    } else {
+        jsObject.Set("organizer", env.Null());
+    }
+
+    if (event.attendeesJson) {
+        jsObject.Set("attendeesJson", Napi::String::New(env, [event.attendeesJson UTF8String]));
+    } else {
+        jsObject.Set("attendeesJson", Napi::String::New(env, "[]"));
     }
     
     return jsObject;
