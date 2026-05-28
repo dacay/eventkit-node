@@ -383,7 +383,9 @@ import Foundation
         @objc public let hasAlarms: Bool
         @objc public let availability: String
         @objc public let externalIdentifier: String?
-        
+        @objc public let isRecurring: Bool
+        @objc public let recurrenceRules: [[String: Any]]
+
         init(from ekEvent: EKEvent) {
             self.id = ekEvent.eventIdentifier
             self.title = ekEvent.title ?? "Untitled Event"
@@ -397,7 +399,37 @@ import Foundation
             self.url = ekEvent.url?.absoluteString
             self.hasAlarms = ekEvent.hasAlarms
             self.externalIdentifier = ekEvent.calendarItemExternalIdentifier
+            self.isRecurring = ekEvent.hasRecurrenceRules
             
+            var rules: [[String: Any]] = []
+            if let ekRules = ekEvent.recurrenceRules {
+                for rule in ekRules {
+                    var r: [String: Any] = [:]
+                    switch rule.frequency {
+                    case .daily:   r["frequency"] = "daily"
+                    case .weekly:  r["frequency"] = "weekly"
+                    case .monthly: r["frequency"] = "monthly"
+                    case .yearly:  r["frequency"] = "yearly"
+                    @unknown default: r["frequency"] = "unknown"
+                    }
+                    r["interval"] = rule.interval
+                    if let days = rule.daysOfTheWeek {
+                        r["daysOfTheWeek"] = days.map { d -> [String: Any] in
+                            let names = ["SU","MO","TU","WE","TH","FR","SA"]
+                            return ["day": names[d.dayOfTheWeek.rawValue - 1], "weekNumber": d.weekNumber]
+                        }
+                    }
+                    if let months = rule.monthsOfTheYear { r["monthsOfTheYear"] = months.map { $0.intValue } }
+                    if let dom = rule.daysOfTheMonth { r["daysOfTheMonth"] = dom.map { $0.intValue } }
+                    if let end = rule.recurrenceEnd {
+                        if let endDate = end.endDate { r["endDate"] = endDate.timeIntervalSince1970 }
+                        if end.occurrenceCount > 0 { r["count"] = end.occurrenceCount }
+                    }
+                    rules.append(r)
+                }
+            }
+            self.recurrenceRules = rules
+
             // Convert availability to string
             switch ekEvent.availability {
             case .free:
