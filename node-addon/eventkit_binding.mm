@@ -753,7 +753,35 @@ Napi::Object EventToJSObject(const Napi::CallbackInfo& info, Event *event) {
     } else {
         jsObject.Set("externalIdentifier", env.Null());
     }
-    
+
+    jsObject.Set("isRecurring", Napi::Boolean::New(env, event.isRecurring));
+
+    // Map recurrenceRules array
+    NSArray<NSDictionary *> *rules = (NSArray<NSDictionary *> *)event.recurrenceRules;
+    Napi::Array jsRules = Napi::Array::New(env, [rules count]);
+    for (NSUInteger i = 0; i < [rules count]; i++) {
+        NSDictionary *rule = rules[i];
+        Napi::Object jsRule = Napi::Object::New(env);
+        if (rule[@"frequency"]) jsRule.Set("frequency", Napi::String::New(env, [rule[@"frequency"] UTF8String]));
+        if (rule[@"interval"]) jsRule.Set("interval", Napi::Number::New(env, [rule[@"interval"] intValue]));
+        if (rule[@"endDate"]) jsRule.Set("endDate", Napi::Number::New(env, [rule[@"endDate"] doubleValue]));
+        if (rule[@"count"]) jsRule.Set("count", Napi::Number::New(env, [rule[@"count"] intValue]));
+        if (rule[@"daysOfTheWeek"]) {
+            NSArray *days = rule[@"daysOfTheWeek"];
+            Napi::Array jsDays = Napi::Array::New(env, [days count]);
+            for (NSUInteger j = 0; j < [days count]; j++) {
+                NSDictionary *d = days[j];
+                Napi::Object jsDay = Napi::Object::New(env);
+                jsDay.Set("day", Napi::String::New(env, [d[@"day"] UTF8String]));
+                jsDay.Set("weekNumber", Napi::Number::New(env, [d[@"weekNumber"] intValue]));
+                jsDays.Set(j, jsDay);
+            }
+            jsRule.Set("daysOfTheWeek", jsDays);
+        }
+        jsRules.Set(i, jsRule);
+     }
+    jsObject.Set("recurrenceRules", jsRules);
+
     return jsObject;
 }
 
